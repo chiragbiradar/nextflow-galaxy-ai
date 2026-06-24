@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/app/generated/prisma
+
+# Trigger.dev runtime files
+.trigger/
+
+# Claude / agent files
+.claude/
+.agents/

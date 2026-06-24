@@ -14,17 +14,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   if (!workflow) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Create run record
   const run = await prisma.workflowRun.create({
-    data: {
-      workflowId: workflow.id,
-      userId: userId!,
-      status: "RUNNING",
-    },
+    data: { workflowId: workflow.id, userId: userId!, status: "RUNNING" },
     include: { nodeRuns: true },
   });
 
-  // Fire Trigger.dev task (non-blocking)
   await tasks.trigger<typeof workflowRunTask>("workflow-run", {
     runId: run.id,
     workflowId: workflow.id,

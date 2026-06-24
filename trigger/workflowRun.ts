@@ -30,42 +30,11 @@ export interface WorkflowRunPayload {
   edges: object[];
 }
 
-// Topological sort (Kahn's algorithm)
-function topoSort(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
-  const inDegree = new Map<string, number>();
-  const adj = new Map<string, string[]>();
-
-  for (const n of nodes) {
-    inDegree.set(n.id, 0);
-    adj.set(n.id, []);
-  }
-  for (const e of edges) {
-    adj.get(e.source)!.push(e.target);
-    inDegree.set(e.target, (inDegree.get(e.target) ?? 0) + 1);
-  }
-
-  const queue = nodes.filter((n) => inDegree.get(n.id) === 0);
-  const result: WorkflowNode[] = [];
-
-  while (queue.length > 0) {
-    const node = queue.shift()!;
-    result.push(node);
-    for (const neighbor of adj.get(node.id) ?? []) {
-      const deg = (inDegree.get(neighbor) ?? 1) - 1;
-      inDegree.set(neighbor, deg);
-      if (deg === 0) queue.push(nodes.find((n) => n.id === neighbor)!);
-    }
-  }
-
-  return result;
-}
-
 export const workflowRunTask = task({
   id: "workflow-run",
   run: async (payload: WorkflowRunPayload) => {
     const prisma = makePrisma();
     const { runId, nodes: rawNodes, edges: rawEdges } = payload;
-
     const nodes = rawNodes as WorkflowNode[];
     const edges = rawEdges as WorkflowEdge[];
 
@@ -73,22 +42,36 @@ export const workflowRunTask = task({
     const inputValues: Record<string, string> = {};
     for (const n of nodes) {
       if (n.type === "requestInputs") {
-        const fields = (n.data.fields as { id: string; name: string; value: string }[]) ?? [];
-        for (const f of fields) {
+        for (const f of (n.data.fields as { id: string; name: string; value: string }[]) ?? []) {
           inputValues[f.name] = f.value;
         }
       }
     }
 
-    // Map nodeId → output text/url for passing between nodes
+    // Build adjacency map and dependency counts (for parallel execution)
+    const adj = new Map<string, string[]>();          // nodeId -> downstream ids
+    const pendingDeps = new Map<string, number>();    // nodeId -> # unresolved deps
     const nodeOutputs: Record<string, string> = {};
 
-    const ordered = topoSort(nodes, edges);
+    for (const n of nodes) { adj.set(n.id, []); pendingDeps.set(n.id, 0); }
+    for (const e of edges) {
+      adj.get(e.source)!.push(e.target);
+      pendingDeps.set(e.target, (pendingDeps.get(e.target) ?? 0) + 1);
+    }
 
-    for (const node of ordered) {
-      if (node.type === "requestInputs" || node.type === "response") continue;
+    // requestInputs and response are instantly resolved — pre-decrement their dependents
+    const preResolved = new Set<string>();
+    for (const n of nodes) {
+      if (n.type === "requestInputs" || n.type === "response") {
+        preResolved.add(n.id);
+        for (const depId of adj.get(n.id) ?? []) {
+          pendingDeps.set(depId, (pendingDeps.get(depId) ?? 1) - 1);
+        }
+      }
+    }
 
-      // Create NodeRun record
+    // Execute a node and immediately fan out to newly unblocked dependents
+    const executeNode = async (node: WorkflowNode): Promise<void> => {
       const nodeRun = await prisma.nodeRun.create({
         data: {
           workflowRunId: runId,
@@ -103,12 +86,11 @@ export const workflowRunTask = task({
 
       try {
         if (node.type === "gemini") {
-          // Build user prompt from upstream outputs + input fields
+          // Build user prompt from upstream outputs or input fields
           const incomingEdges = edges.filter((e) => e.target === node.id);
           const parts: string[] = [];
           for (const e of incomingEdges) {
             if (nodeOutputs[e.source]) parts.push(nodeOutputs[e.source]);
-            // fieldId handle
             if (e.sourceHandle?.startsWith("field-")) {
               const fieldId = e.sourceHandle.replace("field-", "");
               const srcNode = nodes.find((n) => n.id === e.source);
@@ -129,21 +111,15 @@ export const workflowRunTask = task({
           });
 
           if (!handle.ok) throw new Error("Gemini task failed");
-
           const { text, durationMs } = handle.output;
           nodeOutputs[node.id] = text;
 
           await prisma.nodeRun.update({
             where: { id: nodeRun.id },
-            data: {
-              status: "COMPLETED",
-              output: { text },
-              durationMs,
-              completedAt: new Date(),
-            },
+            data: { status: "COMPLETED", output: { text }, durationMs, completedAt: new Date() },
           });
+
         } else if (node.type === "cropImage") {
-          // Find image input from upstream
           const incomingEdges = edges.filter((e) => e.target === node.id);
           let imageUrl = "";
           for (const e of incomingEdges) {
@@ -157,7 +133,6 @@ export const workflowRunTask = task({
             }
             if (nodeOutputs[e.source]) { imageUrl = nodeOutputs[e.source]; break; }
           }
-
           if (!imageUrl) throw new Error("No image input connected to Crop Image node");
 
           const handle = await tasks.triggerAndWait<typeof cropImageTask>("crop-image", {
@@ -169,38 +144,53 @@ export const workflowRunTask = task({
           });
 
           if (!handle.ok) throw new Error("Crop image task failed");
-
           const { outputUrl, durationMs } = handle.output;
           if (outputUrl) nodeOutputs[node.id] = outputUrl;
 
           await prisma.nodeRun.update({
             where: { id: nodeRun.id },
-            data: {
-              status: "COMPLETED",
-              output: { url: outputUrl },
-              durationMs,
-              completedAt: new Date(),
-            },
+            data: { status: "COMPLETED", output: { url: outputUrl }, durationMs, completedAt: new Date() },
           });
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         await prisma.nodeRun.update({
           where: { id: nodeRun.id },
-          data: {
-            status: "FAILED",
-            error: msg,
-            durationMs: Date.now() - nodeStart,
-            completedAt: new Date(),
-          },
+          data: { status: "FAILED", error: msg, durationMs: Date.now() - nodeStart, completedAt: new Date() },
         });
-        // Mark run failed and stop
         await prisma.workflowRun.update({
           where: { id: runId },
           data: { status: "FAILED", completedAt: new Date() },
         });
-        return { status: "FAILED", error: msg };
+        throw err; // propagate so Promise.all catches it
       }
+
+      // Fan out: decrement each dependent's pending count; fire any that become ready
+      const readyDeps: WorkflowNode[] = [];
+      for (const depId of adj.get(node.id) ?? []) {
+        const remaining = (pendingDeps.get(depId) ?? 1) - 1;
+        pendingDeps.set(depId, remaining);
+        if (remaining === 0) {
+          const dep = nodes.find((n) => n.id === depId);
+          if (dep && dep.type !== "requestInputs" && dep.type !== "response") {
+            readyDeps.push(dep);
+          }
+        }
+      }
+      // Fire newly ready dependents concurrently
+      await Promise.all(readyDeps.map(executeNode));
+    };
+
+    // Kick off all initially-ready executable nodes in parallel
+    const initialReady = nodes.filter(
+      (n) => (pendingDeps.get(n.id) ?? 0) === 0 && n.type !== "requestInputs" && n.type !== "response"
+    );
+
+    try {
+      await Promise.all(initialReady.map(executeNode));
+    } catch {
+      // Individual node failures already marked the run as FAILED above
+      return { status: "FAILED" };
     }
 
     await prisma.workflowRun.update({

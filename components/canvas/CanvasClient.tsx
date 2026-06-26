@@ -112,9 +112,15 @@ interface Props {
   initialRuns: Run[];
 }
 
-function defaultNodeData(type: string) {
+function defaultNodeData(type: string, extra?: Record<string, unknown>) {
   if (type === "requestInputs") return { fields: [] };
-  if (type === "gemini") return { label: "LLM Call", model: "gemini-2.5-flash", systemPrompt: "", status: "idle", output: null, durationMs: null };
+  if (type === "gemini") return {
+    label: "LLM Call", model: "gemini-2.5-flash", systemPrompt: "", status: "idle", output: null, durationMs: null,
+    temperature: 0.7, maxTokens: 1024, reasoning: false, topP: 1, topK: 0,
+    frequencyPenalty: 0, presencePenalty: 0, repetitionPenalty: 1, minP: 0, topA: 0,
+    seed: 0, stopSequences: "", jsonMode: false,
+    ...extra,
+  };
   if (type === "cropImage") return { label: "Crop Image", x: 0, y: 0, w: 100, h: 100, status: "idle", output: null, durationMs: null };
   if (type === "response") return {};
   if (type === "stickyNote") return { text: "" };
@@ -286,14 +292,14 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
     setContextMenu({ x: e.clientX, y: e.clientY, nodeId: node.id });
   }, []);
 
-  function addNode(type: string) {
+  function addNode(type: string, extraData?: Record<string, unknown>) {
     snapshot();
     const id = nanoid(10);
     const isStickyNote = type === "stickyNote";
     setNodes(ns => [...ns, {
       id, type,
       position: { x: 100 + Math.random() * 300, y: 100 + Math.random() * 200 },
-      data: defaultNodeData(type),
+      data: defaultNodeData(type, extraData),
       ...(isStickyNote ? { style: { width: 200, height: 150 } } : {}),
     }]);
     setTimeout(() => { fitView({ duration: 400, padding: 0.15 }).catch(() => {}); }, 60);

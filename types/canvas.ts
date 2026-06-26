@@ -20,6 +20,20 @@ export type GeminiNodeData = {
   status: NodeStatus;
   output: string | null;
   durationMs: number | null;
+  // settings
+  temperature?: number;
+  maxTokens?: number;
+  reasoning?: boolean;
+  topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  repetitionPenalty?: number;
+  minP?: number;
+  topA?: number;
+  seed?: number;
+  stopSequences?: string;
+  jsonMode?: boolean;
 };
 
 export type CropImageNodeData = {

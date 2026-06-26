@@ -1,9 +1,9 @@
 "use client";
 
 import { Handle, Position, useReactFlow, type NodeProps, type Node } from "@xyflow/react";
-import { Plus, GripVertical, Copy, Trash2, Info, MoreHorizontal, Maximize2, Loader2, ImageIcon } from "lucide-react";
+import { Plus, GripVertical, Copy, Trash2, Info, MoreHorizontal, Maximize2, Loader2, ImageIcon, Type } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { RequestInputsNodeData, RequestInputField } from "@/types/canvas";
 import { NodeMenuDropdown } from "../NodeMenuDropdown";
 
@@ -17,6 +17,17 @@ export function RequestInputsNode({ id, data }: Props) {
   const fields: RequestInputField[] = data.fields ?? [];
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [pickerOpen]);
 
   function addField(type: "text" | "image") {
     const newField: RequestInputField = {
@@ -62,20 +73,40 @@ export function RequestInputsNode({ id, data }: Props) {
           <Info className="w-3 h-3 text-gray-400" />
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => addField("text")}
-            className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-            title="Add field"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
+          <div className="relative" ref={pickerRef}>
+            <button
+              onClick={() => setPickerOpen(v => !v)}
+              className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+              title="Add field"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            {pickerOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 w-36 rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+                <button
+                  onClick={() => { addField("text"); setPickerOpen(false); }}
+                  className="nodrag w-full flex items-center gap-2 px-3 py-2 text-[12px] text-gray-700 hover:bg-gray-50"
+                >
+                  <Type className="w-3.5 h-3.5 text-amber-500" />
+                  Text field
+                </button>
+                <button
+                  onClick={() => { addField("image"); setPickerOpen(false); }}
+                  className="nodrag w-full flex items-center gap-2 px-3 py-2 text-[12px] text-gray-700 hover:bg-gray-50"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
+                  Image field
+                </button>
+              </div>
+            )}
+          </div>
           <button
             className="p-1 rounded hover:bg-gray-100 text-gray-500 nodrag"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
-        </div>
+        </div>  {/* end flex items-center gap-1 */}
       </div>
 
       {/* Fields */}

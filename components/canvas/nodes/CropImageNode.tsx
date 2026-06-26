@@ -136,8 +136,8 @@ export function CropImageNode({ id, data }: Props) {
           </span>
           <input type="range" min={0} max={100} value={data.x ?? DEFAULTS.x} onChange={(e) => set({ x: Number(e.target.value) })} className="nodrag flex-1 min-w-0 h-1.5 accent-indigo-500 cursor-pointer" />
           <input type="number" min={0} max={100} value={data.x ?? DEFAULTS.x} onChange={(e) => set({ x: Number(e.target.value) })} className="nodrag w-9 shrink-0 text-[11px] text-gray-700 border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-indigo-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-          <button onClick={() => set({ x: DEFAULTS.x })} className="nodrag shrink-0 p-1 rounded hover:bg-gray-100 text-gray-400"><RotateCcw className="w-3 h-3" /></button>
-          <button onClick={() => set({ x: Math.min(100, (data.x ?? DEFAULTS.x) + 1) })} className="nodrag shrink-0 p-1 rounded hover:bg-gray-100 text-gray-400"><Plus className="w-3 h-3" /></button>
+          <button onClick={() => set({ x: DEFAULTS.x })} className="nodrag shrink-0 p-1 rounded border border-gray-200 hover:bg-gray-100 text-gray-400"><RotateCcw className="w-3 h-3" /></button>
+          <button onClick={() => set({ x: Math.min(100, (data.x ?? DEFAULTS.x) + 1) })} className="nodrag shrink-0 p-1 rounded border border-gray-200 hover:bg-gray-100 text-gray-400"><Plus className="w-3 h-3" /></button>
         </div>
         {/* Y Position */}
         <div ref={yRowRef} className="flex items-center gap-2 py-1.5">
@@ -146,8 +146,8 @@ export function CropImageNode({ id, data }: Props) {
           </span>
           <input type="range" min={0} max={100} value={data.y ?? DEFAULTS.y} onChange={(e) => set({ y: Number(e.target.value) })} className="nodrag flex-1 min-w-0 h-1.5 accent-indigo-500 cursor-pointer" />
           <input type="number" min={0} max={100} value={data.y ?? DEFAULTS.y} onChange={(e) => set({ y: Number(e.target.value) })} className="nodrag w-9 shrink-0 text-[11px] text-gray-700 border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-indigo-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-          <button onClick={() => set({ y: DEFAULTS.y })} className="nodrag shrink-0 p-1 rounded hover:bg-gray-100 text-gray-400"><RotateCcw className="w-3 h-3" /></button>
-          <button onClick={() => set({ y: Math.min(100, (data.y ?? DEFAULTS.y) + 1) })} className="nodrag shrink-0 p-1 rounded hover:bg-gray-100 text-gray-400"><Plus className="w-3 h-3" /></button>
+          <button onClick={() => set({ y: DEFAULTS.y })} className="nodrag shrink-0 p-1 rounded border border-gray-200 hover:bg-gray-100 text-gray-400"><RotateCcw className="w-3 h-3" /></button>
+          <button onClick={() => set({ y: Math.min(100, (data.y ?? DEFAULTS.y) + 1) })} className="nodrag shrink-0 p-1 rounded border border-gray-200 hover:bg-gray-100 text-gray-400"><Plus className="w-3 h-3" /></button>
         </div>
         {/* Width */}
         <div ref={wRowRef} className="flex items-center gap-2 py-1.5">
@@ -156,8 +156,8 @@ export function CropImageNode({ id, data }: Props) {
           </span>
           <input type="range" min={0} max={100} value={data.w ?? DEFAULTS.w} onChange={(e) => set({ w: Number(e.target.value) })} className="nodrag flex-1 min-w-0 h-1.5 accent-indigo-500 cursor-pointer" />
           <input type="number" min={0} max={100} value={data.w ?? DEFAULTS.w} onChange={(e) => set({ w: Number(e.target.value) })} className="nodrag w-9 shrink-0 text-[11px] text-gray-700 border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-indigo-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-          <button onClick={() => set({ w: DEFAULTS.w })} className="nodrag shrink-0 p-1 rounded hover:bg-gray-100 text-gray-400"><RotateCcw className="w-3 h-3" /></button>
-          <button onClick={() => set({ w: Math.min(100, (data.w ?? DEFAULTS.w) + 1) })} className="nodrag shrink-0 p-1 rounded hover:bg-gray-100 text-gray-400"><Plus className="w-3 h-3" /></button>
+          <button onClick={() => set({ w: DEFAULTS.w })} className="nodrag shrink-0 p-1 rounded border border-gray-200 hover:bg-gray-100 text-gray-400"><RotateCcw className="w-3 h-3" /></button>
+          <button onClick={() => set({ w: Math.min(100, (data.w ?? DEFAULTS.w) + 1) })} className="nodrag shrink-0 p-1 rounded border border-gray-200 hover:bg-gray-100 text-gray-400"><Plus className="w-3 h-3" /></button>
         </div>
         {/* Height */}
         <div ref={hRowRef} className="flex items-center gap-2 py-1.5">
@@ -166,8 +166,8 @@ export function CropImageNode({ id, data }: Props) {
           </span>
           <input type="range" min={0} max={100} value={data.h ?? DEFAULTS.h} onChange={(e) => set({ h: Number(e.target.value) })} className="nodrag flex-1 min-w-0 h-1.5 accent-indigo-500 cursor-pointer" />
           <input type="number" min={0} max={100} value={data.h ?? DEFAULTS.h} onChange={(e) => set({ h: Number(e.target.value) })} className="nodrag w-9 shrink-0 text-[11px] text-gray-700 border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-indigo-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-          <button onClick={() => set({ h: DEFAULTS.h })} className="nodrag shrink-0 p-1 rounded hover:bg-gray-100 text-gray-400"><RotateCcw className="w-3 h-3" /></button>
-          <button onClick={() => set({ h: Math.min(100, (data.h ?? DEFAULTS.h) + 1) })} className="nodrag shrink-0 p-1 rounded hover:bg-gray-100 text-gray-400"><Plus className="w-3 h-3" /></button>
+          <button onClick={() => set({ h: DEFAULTS.h })} className="nodrag shrink-0 p-1 rounded border border-gray-200 hover:bg-gray-100 text-gray-400"><RotateCcw className="w-3 h-3" /></button>
+          <button onClick={() => set({ h: Math.min(100, (data.h ?? DEFAULTS.h) + 1) })} className="nodrag shrink-0 p-1 rounded border border-gray-200 hover:bg-gray-100 text-gray-400"><Plus className="w-3 h-3" /></button>
         </div>
       </div>
 

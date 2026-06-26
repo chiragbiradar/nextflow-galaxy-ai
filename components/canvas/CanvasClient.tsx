@@ -23,7 +23,7 @@ import "@xyflow/react/dist/style.css";
 import { nanoid } from "nanoid";
 import {
   Plus, Play, ArrowLeft, Loader2, Receipt, CreditCard,
-  History, StickyNote,
+  History, StickyNote, Download,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCanvasStore } from "@/store/canvas";
@@ -523,6 +523,14 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
                 className="flex h-8 w-9 items-center justify-center rounded-lg border border-indigo-400 bg-indigo-500 text-white shadow-sm hover:bg-indigo-600 disabled:opacity-50 transition-all"
               >
                 {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+              </button>
+              <button
+                onClick={exportWorkflow}
+                title="Export workflow as JSON"
+                aria-label="Export workflow as JSON"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white/90 shadow-sm backdrop-blur text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={toggleHistory}

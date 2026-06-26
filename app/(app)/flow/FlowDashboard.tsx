@@ -105,7 +105,7 @@ export function FlowDashboard({
     const res = await fetch("/api/workflows", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: data.name ?? file.name.replace(".json", ""), nodes: data.nodes, edges: data.edges }),
+      body: JSON.stringify({ name: `${data.name ?? file.name.replace(".json", "")} (imported)`, nodes: data.nodes, edges: data.edges }),
     });
     const wf = await res.json() as { id: string };
     router.push(`/workflows/${wf.id}/canvas`);

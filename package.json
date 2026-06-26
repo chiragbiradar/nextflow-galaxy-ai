@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:audit": "playwright test e2e/requirements-audit.spec.ts --reporter=list",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.8",
@@ -35,6 +38,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",

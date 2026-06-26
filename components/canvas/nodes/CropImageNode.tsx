@@ -1,33 +1,38 @@
 "use client";
 
 import { Handle, Position, useReactFlow, type NodeProps, type Node } from "@xyflow/react";
-import { Loader2, CheckCircle2, XCircle, Info, MoreHorizontal } from "lucide-react";
+import { Loader2, XCircle, Info, MoreHorizontal, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CropImageNodeData, NodeStatus } from "@/types/canvas";
+import { useState } from "react";
+import { NodeMenuDropdown } from "../NodeMenuDropdown";
 
 type Props = NodeProps<Node<CropImageNodeData>>;
 
-function StatusIcon({ status }: { status: NodeStatus }) {
-  if (status === "running") return <Loader2 className="w-3 h-3 animate-spin text-blue-500" />;
-  if (status === "completed") return <CheckCircle2 className="w-3 h-3 text-green-500" />;
-  if (status === "failed") return <XCircle className="w-3 h-3 text-red-500" />;
-  return null;
+function RunBadge({ status }: { status: NodeStatus }) {
+  return (
+    <div className={cn(
+      "nodrag flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+      status === "running" ? "bg-emerald-50 text-emerald-600"
+        : status === "failed" ? "bg-red-50 text-red-600"
+        : "bg-emerald-50 text-emerald-600"
+    )}>
+      {status === "running" ? <Loader2 className="w-3 h-3 animate-spin" />
+        : status === "failed" ? <XCircle className="w-3 h-3" />
+        : <Play className="w-2.5 h-2.5 fill-emerald-500" />}
+      <span>{status === "running" ? "Running" : status === "failed" ? "Failed" : "Run"}</span>
+    </div>
+  );
 }
 
-function NumInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-}) {
+function NumInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div>
       <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-0.5 block">{label}</label>
       <input
         type="number"
+        min={0}
+        max={100}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full text-[11px] text-gray-700 border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300"
@@ -36,26 +41,30 @@ function NumInput({
   );
 }
 
+const HANDLE_STYLE = { background: "#f59e0b", width: 10, height: 10, border: "2px solid white" };
+
 export function CropImageNode({ id, data }: Props) {
   const { updateNodeData } = useReactFlow();
-  const status = data.status ?? "idle";
+  const status = (data.status ?? "idle") as NodeStatus;
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function set(patch: Partial<CropImageNodeData>) {
     updateNodeData(id, patch);
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm w-72 text-xs">
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ background: "#3b82f6", width: 10, height: 10, border: "2px solid white" }}
-      />
+    <div className={cn(
+      "bg-white rounded-xl border w-72 text-xs transition-shadow relative",
+      status === "running"
+        ? "border-amber-400 shadow-2xl shadow-amber-100 ring-2 ring-amber-300 ring-opacity-60 animate-pulse"
+        : "border-gray-200 shadow-2xl"
+    )}>
+      <Handle type="target" position={Position.Left} style={HANDLE_STYLE} />
 
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
         <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-sm bg-purple-500 flex items-center justify-center">
+          <div className="w-4 h-4 rounded-sm bg-amber-500 flex items-center justify-center">
             <span className="text-white text-[8px] font-bold">✂</span>
           </div>
           <input
@@ -63,12 +72,14 @@ export function CropImageNode({ id, data }: Props) {
             onChange={(e) => set({ label: e.target.value })}
             className="font-semibold text-gray-800 text-[13px] bg-transparent border-none outline-none w-28"
           />
-          <StatusIcon status={status} />
           <Info className="w-3 h-3 text-gray-400" />
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">30s+</span>
-          <button className="p-1 rounded hover:bg-gray-100 text-gray-500">
+        <div className="flex items-center gap-1.5">
+          <RunBadge status={status} />
+          <button
+            className="p-1 rounded hover:bg-gray-100 text-gray-400"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -76,16 +87,16 @@ export function CropImageNode({ id, data }: Props) {
 
       <div className="px-3 py-2.5 space-y-2">
         <div className="grid grid-cols-2 gap-2">
-          <NumInput label="X" value={data.x ?? 0} onChange={(v) => set({ x: v })} />
-          <NumInput label="Y" value={data.y ?? 0} onChange={(v) => set({ y: v })} />
-          <NumInput label="Width" value={data.w ?? 100} onChange={(v) => set({ w: v })} />
-          <NumInput label="Height" value={data.h ?? 100} onChange={(v) => set({ h: v })} />
+          <NumInput label="X %" value={data.x ?? 0} onChange={(v) => set({ x: v })} />
+          <NumInput label="Y %" value={data.y ?? 0} onChange={(v) => set({ y: v })} />
+          <NumInput label="Width %" value={data.w ?? 100} onChange={(v) => set({ w: v })} />
+          <NumInput label="Height %" value={data.h ?? 100} onChange={(v) => set({ h: v })} />
         </div>
 
-        {/* Transloadit badge */}
+        {/* FFmpeg badge */}
         <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 inline-block" />
-          Powered by Transloadit (async, min 30s)
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+          Powered by FFmpeg (async, min 30s)
         </div>
 
         {/* Output image */}
@@ -113,10 +124,13 @@ export function CropImageNode({ id, data }: Props) {
         )}
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ background: "#f97316", width: 10, height: 10, border: "2px solid white" }}
+      <Handle type="source" position={Position.Right} style={HANDLE_STYLE} />
+
+      <NodeMenuDropdown
+        nodeId={id}
+        canDelete={true}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
       />
     </div>
   );

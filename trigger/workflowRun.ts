@@ -17,9 +17,11 @@ interface WorkflowNode {
 }
 
 interface WorkflowEdge {
+  id?: string;
   source: string;
   target: string;
   sourceHandle?: string;
+  targetHandle?: string;
 }
 
 export interface WorkflowRunPayload {
@@ -28,49 +30,55 @@ export interface WorkflowRunPayload {
   userId: string;
   nodes: object[];
   edges: object[];
+  selectedNodeIds?: string[] | null;
 }
 
 export const workflowRunTask = task({
   id: "workflow-run",
   run: async (payload: WorkflowRunPayload) => {
     const prisma = makePrisma();
-    const { runId, nodes: rawNodes, edges: rawEdges } = payload;
-    const nodes = rawNodes as WorkflowNode[];
+    const { runId, nodes: rawNodes, edges: rawEdges, selectedNodeIds } = payload;
+    const allNodes = rawNodes as WorkflowNode[];
     const edges = rawEdges as WorkflowEdge[];
 
     // Collect input values from requestInputs nodes
     const inputValues: Record<string, string> = {};
-    for (const n of nodes) {
+    for (const n of allNodes) {
       if (n.type === "requestInputs") {
         for (const f of (n.data.fields as { id: string; name: string; value: string }[]) ?? []) {
+          inputValues[`field-${f.id}`] = f.value;
           inputValues[f.name] = f.value;
         }
       }
     }
 
-    // Build adjacency map and dependency counts (for parallel execution)
-    const adj = new Map<string, string[]>();          // nodeId -> downstream ids
-    const pendingDeps = new Map<string, number>();    // nodeId -> # unresolved deps
+    // If selective execution, only run specified nodes (still use all nodes for input context)
+    const selectedSet = selectedNodeIds ? new Set(selectedNodeIds) : null;
+    const nodes = selectedSet
+      ? allNodes.filter(n => selectedSet.has(n.id) || n.type === "requestInputs" || n.type === "response")
+      : allNodes;
+
+    // Build adjacency map and dependency counts for parallel DAG execution
+    const adj = new Map<string, string[]>();
+    const pendingDeps = new Map<string, number>();
     const nodeOutputs: Record<string, string> = {};
 
     for (const n of nodes) { adj.set(n.id, []); pendingDeps.set(n.id, 0); }
     for (const e of edges) {
+      if (!adj.has(e.source) || !adj.has(e.target)) continue; // skip edges outside filtered set
       adj.get(e.source)!.push(e.target);
       pendingDeps.set(e.target, (pendingDeps.get(e.target) ?? 0) + 1);
     }
 
-    // requestInputs and response are instantly resolved — pre-decrement their dependents
-    const preResolved = new Set<string>();
+    // requestInputs and response are instantly resolved
     for (const n of nodes) {
       if (n.type === "requestInputs" || n.type === "response") {
-        preResolved.add(n.id);
         for (const depId of adj.get(n.id) ?? []) {
           pendingDeps.set(depId, (pendingDeps.get(depId) ?? 1) - 1);
         }
       }
     }
 
-    // Execute a node and immediately fan out to newly unblocked dependents
     const executeNode = async (node: WorkflowNode): Promise<void> => {
       const nodeRun = await prisma.nodeRun.create({
         data: {
@@ -86,21 +94,38 @@ export const workflowRunTask = task({
 
       try {
         if (node.type === "gemini") {
-          // Build user prompt from upstream outputs or input fields
-          const incomingEdges = edges.filter((e) => e.target === node.id);
-          const parts: string[] = [];
-          for (const e of incomingEdges) {
-            if (nodeOutputs[e.source]) parts.push(nodeOutputs[e.source]);
+          // Split incoming edges by targetHandle
+          const incomingEdges = edges.filter(e => e.target === node.id);
+          const promptEdges = incomingEdges.filter(e => e.targetHandle === "prompt" || !e.targetHandle);
+          const visionEdges = incomingEdges.filter(e => e.targetHandle === "image-vision");
+
+          // Build prompt text
+          const promptParts: string[] = [];
+          for (const e of promptEdges) {
+            if (nodeOutputs[e.source]) promptParts.push(nodeOutputs[e.source]);
             if (e.sourceHandle?.startsWith("field-")) {
               const fieldId = e.sourceHandle.replace("field-", "");
-              const srcNode = nodes.find((n) => n.id === e.source);
-              const field = (srcNode?.data.fields as { id: string; value: string }[] ?? []).find(
-                (f) => f.id === fieldId
-              );
-              if (field) parts.push(field.value);
+              const srcNode = allNodes.find(n => n.id === e.source);
+              const field = (srcNode?.data.fields as { id: string; value: string }[] ?? []).find(f => f.id === fieldId);
+              if (field?.value) promptParts.push(field.value);
             }
           }
-          const userPrompt = parts.join("\n") || Object.values(inputValues).join("\n");
+
+          // Build vision image URLs
+          const visionUrls: string[] = [];
+          for (const e of visionEdges) {
+            if (nodeOutputs[e.source]) visionUrls.push(nodeOutputs[e.source]);
+            if (e.sourceHandle?.startsWith("field-")) {
+              const fieldId = e.sourceHandle.replace("field-", "");
+              const srcNode = allNodes.find(n => n.id === e.source);
+              const field = (srcNode?.data.fields as { id: string; type: string; value: string }[] ?? []).find(
+                f => f.id === fieldId && f.type === "image"
+              );
+              if (field?.value) visionUrls.push(field.value);
+            }
+          }
+
+          const userPrompt = promptParts.join("\n") || Object.values(inputValues).join("\n");
 
           const handle = await tasks.triggerAndWait<typeof geminiTask>("gemini-call", {
             runId,
@@ -108,6 +133,7 @@ export const workflowRunTask = task({
             model: (node.data.model as string) || "gemini-2.0-flash",
             systemPrompt: (node.data.systemPrompt as string) || "",
             userPrompt,
+            visionUrls: visionUrls.length > 0 ? visionUrls : undefined,
           });
 
           if (!handle.ok) throw new Error("Gemini task failed");
@@ -120,16 +146,16 @@ export const workflowRunTask = task({
           });
 
         } else if (node.type === "cropImage") {
-          const incomingEdges = edges.filter((e) => e.target === node.id);
+          const incomingEdges = edges.filter(e => e.target === node.id);
           let imageUrl = "";
           for (const e of incomingEdges) {
             if (e.sourceHandle?.startsWith("field-")) {
               const fieldId = e.sourceHandle.replace("field-", "");
-              const srcNode = nodes.find((n) => n.id === e.source);
+              const srcNode = allNodes.find(n => n.id === e.source);
               const field = (srcNode?.data.fields as { id: string; type: string; value: string }[] ?? []).find(
-                (f) => f.id === fieldId && f.type === "image"
+                f => f.id === fieldId && f.type === "image"
               );
-              if (field) { imageUrl = field.value; break; }
+              if (field?.value) { imageUrl = field.value; break; }
             }
             if (nodeOutputs[e.source]) { imageUrl = nodeOutputs[e.source]; break; }
           }
@@ -162,35 +188,57 @@ export const workflowRunTask = task({
           where: { id: runId },
           data: { status: "FAILED", completedAt: new Date() },
         });
-        throw err; // propagate so Promise.all catches it
+        throw err;
       }
 
-      // Fan out: decrement each dependent's pending count; fire any that become ready
-      const readyDeps: WorkflowNode[] = [];
+      // Fan out to newly unblocked dependents — sequential (Trigger.dev v3 forbids Promise.all around triggerAndWait)
       for (const depId of adj.get(node.id) ?? []) {
         const remaining = (pendingDeps.get(depId) ?? 1) - 1;
         pendingDeps.set(depId, remaining);
         if (remaining === 0) {
-          const dep = nodes.find((n) => n.id === depId);
+          const dep = nodes.find(n => n.id === depId);
           if (dep && dep.type !== "requestInputs" && dep.type !== "response") {
-            readyDeps.push(dep);
+            await executeNode(dep);
           }
         }
       }
-      // Fire newly ready dependents concurrently
-      await Promise.all(readyDeps.map(executeNode));
     };
 
-    // Kick off all initially-ready executable nodes in parallel
     const initialReady = nodes.filter(
-      (n) => (pendingDeps.get(n.id) ?? 0) === 0 && n.type !== "requestInputs" && n.type !== "response"
+      n => (pendingDeps.get(n.id) ?? 0) === 0 && n.type !== "requestInputs" && n.type !== "response"
     );
 
     try {
-      await Promise.all(initialReady.map(executeNode));
+      for (const node of initialReady) {
+        await executeNode(node);
+      }
     } catch {
-      // Individual node failures already marked the run as FAILED above
       return { status: "FAILED" };
+    }
+
+    // Write nodeRun for each response node with collected upstream outputs
+    const responseNodes = nodes.filter(n => n.type === "response");
+    for (const resNode of responseNodes) {
+      const incomingEdges = edges.filter(e => e.target === resNode.id);
+      const resultParts: { label: string; text: string }[] = [];
+      for (const e of incomingEdges) {
+        const srcNode = allNodes.find(n => n.id === e.source);
+        const out = nodeOutputs[e.source];
+        if (out) resultParts.push({ label: srcNode?.data?.label as string || srcNode?.type || e.source, text: out });
+      }
+      const combinedText = resultParts.map(r => r.text).join("\n\n");
+      await prisma.nodeRun.create({
+        data: {
+          workflowRunId: runId,
+          nodeId: resNode.id,
+          nodeLabel: "Response",
+          nodeType: "response",
+          status: "COMPLETED",
+          output: { text: combinedText, results: resultParts },
+          durationMs: 0,
+          completedAt: new Date(),
+        },
+      });
     }
 
     await prisma.workflowRun.update({

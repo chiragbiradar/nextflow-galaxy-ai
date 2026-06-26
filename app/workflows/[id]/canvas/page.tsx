@@ -45,6 +45,7 @@ export default async function CanvasPage({ params }: PageProps) {
           nodeType: nr.nodeType,
           status: nr.status,
           durationMs: nr.durationMs,
+          output: nr.output ?? null,
           startedAt: nr.startedAt.toISOString(),
         })),
       }))}

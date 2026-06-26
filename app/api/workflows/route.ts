@@ -15,12 +15,23 @@ export async function GET() {
   return NextResponse.json(workflows);
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  let name = "Untitled";
+  let nodes: object[] = [];
+  let edges: object[] = [];
+
+  const body = await req.json().catch(() => null) as { name?: string; nodes?: object[]; edges?: object[] } | null;
+  if (body) {
+    if (body.name) name = body.name;
+    if (body.nodes) nodes = body.nodes;
+    if (body.edges) edges = body.edges;
+  }
+
   const workflow = await prisma.workflow.create({
-    data: { userId, name: "Untitled", nodes: [], edges: [] },
+    data: { userId, name, nodes, edges },
   });
 
   return NextResponse.json(workflow, { status: 201 });

@@ -3,14 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
 function makePrisma() {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    max: 3,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 30000,
-  });
-  // ponytail: swallow idle-client errors so pg doesn't crash Next.js
-  pool.on("error", () => {});
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   return new PrismaClient({ adapter: new PrismaPg(pool) });
 }
 

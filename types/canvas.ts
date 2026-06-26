@@ -16,6 +16,7 @@ export type GeminiNodeData = {
   label: string;
   model: string;
   systemPrompt: string;
+  prompt?: string;
   status: NodeStatus;
   output: string | null;
   durationMs: number | null;
@@ -32,4 +33,4 @@ export type CropImageNodeData = {
   durationMs: number | null;
 };
 
-export type ResponseNodeData = Record<string, never>;
+export type ResponseNodeData = Record<string, unknown>;

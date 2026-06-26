@@ -1,8 +1,15 @@
-import { task, wait } from "@trigger.dev/sdk";
+import { task } from "@trigger.dev/sdk";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { writeFile, readFile, unlink } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+
+const exec = promisify(execFile);
 
 export interface CropImageTaskPayload {
   imageUrl: string;
-  x: number;
+  x: number; // 0–100 %
   y: number;
   w: number;
   h: number;
@@ -12,74 +19,36 @@ export const cropImageTask = task({
   id: "crop-image",
   run: async (payload: CropImageTaskPayload) => {
     const start = Date.now();
+    const { imageUrl, x, y, w, h } = payload;
 
-    const authKey = process.env.TRANSLOADIT_AUTH_KEY!;
-    const authSecret = process.env.TRANSLOADIT_AUTH_SECRET!;
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.status}`);
+    const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
 
-    // Build Transloadit assembly
-    const params = {
-      auth: { key: authKey },
-      steps: {
-        ":original": { robot: "/upload/handle" },
-        cropped: {
-          use: ":original",
-          robot: "/image/resize",
-          crop: true,
-          crop_x1: payload.x,
-          crop_y1: payload.y,
-          crop_x2: payload.x + payload.w,
-          crop_y2: payload.y + payload.h,
-          result: true,
-        },
-      },
-    };
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const tmpIn = join(tmpdir(), `crop-in-${id}.jpg`);
+    const tmpOut = join(tmpdir(), `crop-out-${id}.jpg`);
 
-    // Create assembly
-    const formData = new FormData();
-    formData.append("params", JSON.stringify(params));
+    try {
+      await writeFile(tmpIn, imgBuffer);
 
-    // Sign the request
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(authSecret),
-      { name: "HMAC", hash: "SHA-1" },
-      false,
-      ["sign"]
-    );
-    const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(JSON.stringify(params)));
-    const sigHex = Array.from(new Uint8Array(sig))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    formData.append("signature", `sha1:${sigHex}`);
+      // FFmpeg percentage-based crop:
+      // crop=iw*(w/100):ih*(h/100):iw*(x/100):ih*(y/100)
+      const cropFilter = `crop=iw*${w}/100:ih*${h}/100:iw*${x}/100:ih*${y}/100`;
+      const ffmpegBin = process.env.FFMPEG_PATH ?? "ffmpeg";
+      await exec(ffmpegBin, ["-i", tmpIn, "-vf", cropFilter, "-y", tmpOut]);
 
-    // Fetch image and attach
-    const imgRes = await fetch(payload.imageUrl);
-    const imgBlob = await imgRes.blob();
-    formData.append("file", imgBlob, "image.jpg");
+      const outBuf = await readFile(tmpOut);
+      const outputUrl = `data:image/jpeg;base64,${outBuf.toString("base64")}`;
 
-    const assemblyRes = await fetch("https://api2.transloadit.com/assemblies", {
-      method: "POST",
-      body: formData,
-    });
-    const assembly = await assemblyRes.json();
+      // Mandatory 30s minimum latency per spec
+      const elapsed = Date.now() - start;
+      if (elapsed < 30000) await new Promise((r) => setTimeout(r, 30000 - elapsed));
 
-    // Poll assembly until complete (mandatory 30s+ wait)
-    await wait.for({ seconds: 35 });
-
-    let result = assembly;
-    for (let i = 0; i < 20; i++) {
-      const pollRes = await fetch(assembly.assembly_ssl_url);
-      result = await pollRes.json();
-      if (result.ok === "ASSEMBLY_COMPLETED" || result.error) break;
-      await wait.for({ seconds: 5 });
+      return { outputUrl, durationMs: Date.now() - start };
+    } finally {
+      await unlink(tmpIn).catch(() => {});
+      await unlink(tmpOut).catch(() => {});
     }
-
-    if (result.error) throw new Error(result.error);
-
-    const outputUrl = result.results?.cropped?.[0]?.ssl_url ?? null;
-    const durationMs = Date.now() - start;
-
-    return { outputUrl, durationMs };
   },
 });

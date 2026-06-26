@@ -1,46 +1,21 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, X, Type, Image, Cpu, Flag } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Search, Type, Image, Cpu, Flag, ChevronRight } from "lucide-react";
+import React from "react";
 
 interface NodeDef {
   type: string;
   label: string;
-  description: string;
   category: "OTHERS" | "IMAGE";
   icon: React.ReactNode;
 }
 
 const NODE_DEFS: NodeDef[] = [
-  {
-    type: "requestInputs",
-    label: "Request-Inputs",
-    description: "Define text or image inputs for this workflow",
-    category: "OTHERS",
-    icon: <Type className="w-4 h-4 text-orange-500" />,
-  },
-  {
-    type: "gemini",
-    label: "LLM Call",
-    description: "Call Gemini to process text or images",
-    category: "OTHERS",
-    icon: <Cpu className="w-4 h-4 text-blue-500" />,
-  },
-  {
-    type: "response",
-    label: "Response",
-    description: "Terminal node — collects workflow outputs",
-    category: "OTHERS",
-    icon: <Flag className="w-4 h-4 text-gray-700" />,
-  },
-  {
-    type: "cropImage",
-    label: "Crop Image",
-    description: "Crop an image to specified dimensions via Transloadit (30s+)",
-    category: "IMAGE",
-    icon: <Image className="w-4 h-4 text-purple-500" />,
-  },
+  { type: "requestInputs", label: "Request Inputs", category: "OTHERS", icon: <Type className="w-4 h-4 text-orange-500" /> },
+  { type: "gemini", label: "LLM Call", category: "OTHERS", icon: <Cpu className="w-4 h-4 text-blue-500" /> },
+  { type: "response", label: "Response", category: "OTHERS", icon: <Flag className="w-4 h-4 text-gray-600" /> },
+  { type: "cropImage", label: "Crop Image", category: "IMAGE", icon: <Image className="w-4 h-4 text-purple-500" /> },
 ];
 
 interface Props {
@@ -64,84 +39,62 @@ export function AddNodeModal({ open, onClose, onAdd }: Props) {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-    window.addEventListener("keydown", onKey);
+    if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [open, onClose]);
 
   if (!open) return null;
 
-  const filtered = NODE_DEFS.filter(
-    (n) =>
-      n.label.toLowerCase().includes(search.toLowerCase()) ||
-      n.description.toLowerCase().includes(search.toLowerCase())
-  );
-
   const categories = ["OTHERS", "IMAGE"] as const;
+  const filtered = NODE_DEFS.filter(n =>
+    n.label.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
+      className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 w-60 rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden"
+      onClick={e => e.stopPropagation()}
     >
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-[440px] max-h-[70vh] flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Search bar */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
-          <Search className="w-4 h-4 text-gray-400 shrink-0" />
-          <input
-            ref={inputRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search nodes..."
-            className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400"
-          />
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 text-gray-400">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Node list */}
-        <div className="overflow-y-auto flex-1 py-2">
-          {categories.map((cat) => {
-            const nodes = filtered.filter((n) => n.category === cat);
-            if (nodes.length === 0) return null;
-            return (
-              <div key={cat} className="mb-2">
-                <p className="px-4 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-                  {cat}
-                </p>
-                {nodes.map((node) => (
-                  <button
-                    key={node.type}
-                    onClick={() => {
-                      onAdd(node.type);
-                      onClose();
-                    }}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
-                    )}
-                  >
-                    <div className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center shrink-0 bg-white">
-                      {node.icon}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{node.label}</p>
-                      <p className="text-[11px] text-gray-400">{node.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            );
-          })}
-
-          {filtered.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-gray-400">
-              No nodes match &ldquo;{search}&rdquo;
+      <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2.5">
+        <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+        <input
+          ref={inputRef}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search nodes..."
+          className="flex-1 text-xs text-gray-700 bg-transparent outline-none placeholder-gray-400"
+        />
+      </div>
+      <div className="max-h-72 overflow-y-auto py-1">
+        {categories.map(cat => {
+          const nodes = filtered.filter(n => n.category === cat);
+          if (!nodes.length) return null;
+          return (
+            <div key={cat}>
+              <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+                {cat}
+              </p>
+              {nodes.map(node => (
+                <button
+                  key={node.type}
+                  onClick={() => { onAdd(node.type); onClose(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center shrink-0 bg-gray-50">
+                    {node.icon}
+                  </div>
+                  <span className="flex-1 text-sm text-gray-700">{node.label}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div className="px-3 py-6 text-center text-xs text-gray-400">
+            No nodes match &ldquo;{search}&rdquo;
+          </div>
+        )}
       </div>
     </div>
   );

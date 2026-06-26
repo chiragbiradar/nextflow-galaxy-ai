@@ -79,11 +79,11 @@ export function Sidebar() {
       <div className="group/logo flex items-center justify-between px-2 py-3">
         {!collapsed ? (
           <Link href="/flow" className="flex items-center px-1">
-            <img src="/magica-logo.webp" alt="Magica" className="h-[26px] w-[104px] object-contain" />
+            <span className="text-xl font-bold text-gray-900 tracking-tight">Py</span>
           </Link>
         ) : (
           <Link href="/flow" className="w-9 h-9 flex items-center justify-center">
-            <img src="/magica-icon.png" alt="Magica" className="w-5 h-5" />
+            <span className="text-base font-bold text-gray-900">Py</span>
           </Link>
         )}
         <button

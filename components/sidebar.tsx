@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { usePathname, useRouter } from "next/navigation";
+import { UserButton, useUser, useClerk } from "@clerk/nextjs";
 import {
   Plus,
   Search,
@@ -13,6 +13,7 @@ import {
   Settings,
   Gift,
   ChevronDown,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -63,6 +64,8 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [userExpanded, setUserExpanded] = useState(true);
   const { user } = useUser();
+  const { signOut } = useClerk();
+  const router = useRouter();
   const fullName = user?.fullName ?? user?.firstName ?? "Account";
 
   return (
@@ -177,9 +180,18 @@ export function Sidebar() {
             >
               <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", userExpanded && "rotate-180")} />
             </button>
-            <div className="flex items-center justify-center gap-2.5 px-1 py-1">
-              <UserButton />
-              <span className="text-sm text-gray-700 truncate">{fullName}</span>
+            <div className="flex items-center justify-between gap-2 px-1 py-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <UserButton />
+                <span className="text-sm text-gray-700 truncate">{fullName}</span>
+              </div>
+              <button
+                onClick={() => signOut(() => router.push("/sign-in"))}
+                title="Sign out"
+                className="shrink-0 p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
             </div>
           </>
         )}
@@ -189,6 +201,13 @@ export function Sidebar() {
               <Settings className="w-3.5 h-3.5" />
             </button>
             <UserButton />
+            <button
+              onClick={() => signOut(() => router.push("/sign-in"))}
+              title="Sign out"
+              className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>

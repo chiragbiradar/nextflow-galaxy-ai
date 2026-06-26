@@ -7,6 +7,8 @@ const PatchBody = z.object({
   name: z.string().min(1).max(255).optional(),
   nodes: z.array(z.any()).optional(),
   edges: z.array(z.any()).optional(),
+  coverImage: z.string().optional().nullable(),
+  isSystem: z.boolean().optional(),
 });
 
 async function getOwned(id: string, userId: string) {
@@ -38,6 +40,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(body.name !== undefined && { name: body.name }),
       ...(body.nodes !== undefined && { nodes: body.nodes }),
       ...(body.edges !== undefined && { edges: body.edges }),
+      ...(body.coverImage !== undefined && { coverImage: body.coverImage }),
+      ...(body.isSystem !== undefined && { isSystem: body.isSystem }),
     },
   });
   return NextResponse.json(updated);

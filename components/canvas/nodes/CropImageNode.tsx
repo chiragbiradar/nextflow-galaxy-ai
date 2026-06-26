@@ -1,11 +1,12 @@
 "use client";
 
-import { Handle, Position, useReactFlow, type NodeProps, type Node } from "@xyflow/react";
+import { Handle, Position, useReactFlow, useEdges, useNodes, type NodeProps, type Node } from "@xyflow/react";
 import { Loader2, XCircle, Info, MoreHorizontal, Play, RotateCcw, Plus, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CropImageNodeData, NodeStatus } from "@/types/canvas";
+import type { CropImageNodeData, NodeStatus, RequestInputField } from "@/types/canvas";
 import { useState, useRef, useLayoutEffect } from "react";
 import { NodeMenuDropdown } from "../NodeMenuDropdown";
+import { useCanvasStore } from "@/store/canvas";
 
 type Props = NodeProps<Node<CropImageNodeData>>;
 
@@ -15,9 +16,34 @@ const DEFAULTS = { x: 20, y: 20, w: 60, h: 60 };
 
 export function CropImageNode({ id, data }: Props) {
   const { updateNodeData } = useReactFlow();
+  const edges = useEdges();
+  const nodes = useNodes();
+  const runNodeCallback = useCanvasStore(s => s.runNodeCallback);
   const status = (data.status ?? "idle") as NodeStatus;
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Derive input image from connected source node
+  const imageEdge = edges.find(e => e.target === id && e.targetHandle === "image-input");
+  let connectedImageUrl: string | undefined;
+  if (imageEdge) {
+    const srcNode = nodes.find(n => n.id === imageEdge.source);
+    if (srcNode) {
+      const srcData = srcNode.data as Record<string, unknown>;
+      // RequestInputsNode: fields array with type=image
+      if (Array.isArray(srcData.fields)) {
+        const fields = srcData.fields as RequestInputField[];
+        const fieldId = imageEdge.sourceHandle?.replace("field-", "");
+        const field = fieldId ? fields.find(f => f.id === fieldId) : fields.find(f => f.type === "image");
+        connectedImageUrl = field?.value || undefined;
+      }
+      // CropImageNode or any node with outputImageUrl / output
+      if (!connectedImageUrl) {
+        connectedImageUrl = (srcData.outputImageUrl as string) || (srcData.output as string) || undefined;
+      }
+    }
+  }
+  const displayImageUrl = connectedImageUrl || data.inputImageUrl;
 
   // refs for each row to measure actual offsetTop for handle positioning
   const rootRef = useRef<HTMLDivElement>(null);
@@ -92,10 +118,13 @@ export function CropImageNode({ id, data }: Props) {
           <button className="nodrag p-1 rounded hover:bg-gray-100 text-gray-400" onClick={() => set({ x: DEFAULTS.x, y: DEFAULTS.y, w: DEFAULTS.w, h: DEFAULTS.h })}>
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
-          <button className={cn(
-            "nodrag flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
-            isRunning ? "bg-emerald-50 text-emerald-600" : isFailed ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
-          )}>
+          <button
+            onClick={() => runNodeCallback?.([id])}
+            disabled={isRunning}
+            className={cn(
+              "nodrag flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-60",
+              isRunning ? "bg-emerald-50 text-emerald-600" : isFailed ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
+            )}>
             {isRunning ? <Loader2 className="w-3 h-3 animate-spin" /> : isFailed ? <XCircle className="w-3 h-3" /> : <Play className="w-2.5 h-2.5 fill-emerald-500" />}
             <span>{isRunning ? "Running" : isFailed ? "Failed" : "Run"}</span>
           </button>
@@ -106,25 +135,36 @@ export function CropImageNode({ id, data }: Props) {
       </div>
 
       {/* Input Image row */}
-      <div ref={imageInputRowRef} className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
-        <span className="text-[11px] text-gray-700 font-medium">
-          Input Image<span className="text-red-400">*</span>
-        </span>
-        <div className="flex-1" />
-        <button
-          className="nodrag flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 text-[11px]"
-          onClick={() => fileRef.current?.click()}
-        >
-          <Upload className="w-3 h-3" />
-          Upload Image
-        </button>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (ev) => set({ inputImageUrl: ev.target?.result as string });
-          reader.readAsDataURL(file);
-        }} />
+      <div ref={imageInputRowRef} className="border-b border-gray-100">
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <span className="text-[11px] text-gray-700 font-medium">
+            Input Image<span className="text-red-400">*</span>
+          </span>
+          <div className="flex-1" />
+          {!connectedImageUrl && (
+            <button
+              className="nodrag flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 text-[11px]"
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload className="w-3 h-3" />
+              Upload Image
+            </button>
+          )}
+          {connectedImageUrl && (
+            <span className="text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">Connected</span>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => set({ inputImageUrl: ev.target?.result as string });
+            reader.readAsDataURL(file);
+          }} />
+        </div>
+        {displayImageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={displayImageUrl} alt="Input" className="mx-3 mb-2.5 w-[calc(100%-1.5rem)] rounded-lg border border-gray-200 object-cover max-h-28" />
+        )}
       </div>
 
       {/* Sliders */}

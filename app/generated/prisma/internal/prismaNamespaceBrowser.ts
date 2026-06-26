@@ -78,6 +78,8 @@ export const WorkflowScalarFieldEnum = {
   name: 'name',
   nodes: 'nodes',
   edges: 'edges',
+  coverImage: 'coverImage',
+  isSystem: 'isSystem',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

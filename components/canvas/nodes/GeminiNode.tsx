@@ -134,10 +134,15 @@ export function GeminiNode({ id, data }: Props) {
   let connectedPromptValue = "";
   if (isPromptConnected && promptEdge) {
     const srcNode = allNodes.find(n => n.id === promptEdge.source);
-    if (srcNode?.type === "requestInputs") {
-      const fieldId = promptEdge.sourceHandle?.replace("field-", "");
-      const field = ((srcNode.data as RequestInputsNodeData).fields ?? []).find(f => f.id === fieldId);
-      connectedPromptValue = field?.value ?? "";
+    if (srcNode) {
+      if (srcNode.type === "requestInputs") {
+        const fieldId = promptEdge.sourceHandle?.replace("field-", "");
+        const field = ((srcNode.data as RequestInputsNodeData).fields ?? []).find(f => f.id === fieldId);
+        connectedPromptValue = field?.value ?? "";
+      } else {
+        // gemini, cropImage, or any node that stores text output in data.output
+        connectedPromptValue = (typeof srcNode.data.output === "string" ? srcNode.data.output : "") ?? "";
+      }
     }
   }
 

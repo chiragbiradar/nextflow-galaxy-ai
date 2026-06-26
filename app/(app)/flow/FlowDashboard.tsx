@@ -2,20 +2,16 @@
 
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Plus, Search, Trash2, Pencil, Check, X } from "lucide-react";
+import { Upload, Plus, Search, Trash2, Pencil, Check, X, Copy, Globe, ImageIcon } from "lucide-react";
 
 interface Workflow {
   id: string;
   name: string;
   createdAt: string;
   updatedAt: string;
+  coverImage: string | null;
+  isSystem: boolean;
 }
-
-const SYSTEM_WORKFLOWS = [
-  { id: "sys-racing", name: "AI Racing Car Generator", thumb: "/workflow-thumb.jpg" },
-  { id: "sys-text", name: "Text Summarizer", thumb: null },
-  { id: "sys-image", name: "Image Describer", thumb: null },
-];
 
 const CARD_GRADIENTS = [
   "from-violet-400 via-purple-500 to-indigo-600",
@@ -24,11 +20,18 @@ const CARD_GRADIENTS = [
   "from-emerald-400 via-green-500 to-teal-600",
 ];
 
-export function FlowDashboard({ workflows }: { workflows: Workflow[] }) {
+export function FlowDashboard({
+  workflows,
+  systemWorkflows,
+}: {
+  workflows: Workflow[];
+  systemWorkflows: Workflow[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [cloningId, setCloningId] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
   const filtered = workflows.filter((w) =>
@@ -61,6 +64,39 @@ export function FlowDashboard({ workflows }: { workflows: Workflow[] }) {
     router.refresh();
   }
 
+  async function handleCoverChange(id: string, file: File) {
+    const bytes = await file.arrayBuffer();
+    const b64 = Buffer.from(bytes).toString("base64");
+    const coverImage = `data:${file.type};base64,${b64}`;
+    await fetch(`/api/workflows/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ coverImage }),
+    });
+    router.refresh();
+  }
+
+  async function handleClone(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    setCloningId(id);
+    const res = await fetch(`/api/workflows/${id}/clone`, { method: "POST" });
+    const wf = await res.json() as { id: string };
+    setCloningId(null);
+    router.push(`/workflows/${wf.id}/canvas`);
+  }
+
+  async function handleMarkSystem(id: string, isSystem: boolean, e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    await fetch(`/api/workflows/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isSystem }),
+    });
+    router.refresh();
+  }
+
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -84,13 +120,7 @@ export function FlowDashboard({ workflows }: { workflows: Workflow[] }) {
           <p className="text-sm text-gray-500 mt-0.5">Build workflows or run models directly</p>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <input
-            ref={importRef}
-            type="file"
-            accept=".json"
-            className="sr-only"
-            onChange={handleImport}
-          />
+          <input ref={importRef} type="file" accept=".json" className="sr-only" onChange={handleImport} />
           <button
             onClick={() => importRef.current?.click()}
             className="flex items-center gap-1.5 px-4 py-2 text-sm text-[#3d3d41] bg-[#f5f5f5] rounded-lg hover:bg-[#ebebeb] transition-colors"
@@ -112,36 +142,31 @@ export function FlowDashboard({ workflows }: { workflows: Workflow[] }) {
       <div className="flex-1 overflow-auto px-8 pb-8">
         {/* System Workflows */}
         <div className="mb-8">
-          <h2 className="text-base font-medium text-gray-900">System Workflows</h2>
-          <p className="text-xs text-gray-500 mt-0.5 mb-4">Prebuilt workflow templates - click to open and start using.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {SYSTEM_WORKFLOWS.map((sw) => (
-              <div
-                key={sw.id}
-                className="group flex flex-col border border-[#e0e0e2] rounded-2xl bg-[#f4f4f4] hover:shadow-sm cursor-pointer transition-all overflow-hidden"
-              >
-                <div className="h-40 shrink-0 overflow-hidden">
-                  {sw.thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={sw.thumb} alt={sw.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-violet-400 via-purple-500 to-indigo-600" />
-                  )}
-                </div>
-                <div className="px-3 py-2.5">
-                  <p className="text-sm font-medium text-gray-900 truncate">{sw.name}</p>
-                </div>
+            <h2 className="text-base font-medium text-gray-900">System Workflows</h2>
+            <p className="text-xs text-gray-500 mt-0.5 mb-4">Prebuilt templates — clone to customize and run.</p>
+            {systemWorkflows.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4">No system workflows yet. Hover a workflow card and click the globe icon to mark it as system.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {systemWorkflows.map((sw) => (
+                  <SystemWorkflowCard
+                    key={sw.id}
+                    workflow={sw}
+                    cloning={cloningId === sw.id}
+                    onClone={(e) => handleClone(sw.id, e)}
+                    onClick={() => router.push(`/workflows/${sw.id}/canvas`)}
+                  />
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        </div>
 
         {/* Your Workflows */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-medium text-gray-900">Your Workflows</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Open one to edit, run, and review history.</p>
+              <p className="text-xs text-gray-500 mt-0.5">Open to edit, run, and review history.</p>
             </div>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -173,6 +198,8 @@ export function FlowDashboard({ workflows }: { workflows: Workflow[] }) {
                   deleting={deletingId === wf.id}
                   onDelete={(e) => handleDelete(wf.id, e)}
                   onRename={(name) => handleRename(wf.id, name)}
+                  onCoverChange={(file) => handleCoverChange(wf.id, file)}
+                  onMarkSystem={(e) => handleMarkSystem(wf.id, !wf.isSystem, e)}
                   onClick={() => router.push(`/workflows/${wf.id}/canvas`)}
                 />
               ))}
@@ -184,23 +211,75 @@ export function FlowDashboard({ workflows }: { workflows: Workflow[] }) {
   );
 }
 
+function SystemWorkflowCard({
+  workflow,
+  cloning,
+  onClone,
+  onClick,
+}: {
+  workflow: Workflow;
+  cloning: boolean;
+  onClone: (e: React.MouseEvent) => void;
+  onClick: () => void;
+}) {
+  const idx = workflow.id.charCodeAt(0) % CARD_GRADIENTS.length;
+  const gradient = CARD_GRADIENTS[idx];
+
+  return (
+    <div
+      onClick={onClick}
+      className="group flex flex-col border border-[#e0e0e2] rounded-2xl bg-[#f4f4f4] hover:shadow-sm cursor-pointer transition-all overflow-hidden"
+    >
+      <div className="relative h-40 shrink-0 overflow-hidden">
+        {workflow.coverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={workflow.coverImage} alt={workflow.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${gradient}`} />
+        )}
+        <div className="absolute top-1.5 left-1.5">
+          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/80 text-[10px] font-medium text-indigo-600">
+            <Globe className="w-3 h-3" /> System
+          </span>
+        </div>
+        <button
+          onClick={onClone}
+          disabled={cloning}
+          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-md bg-white/90 text-[11px] font-medium text-gray-700 hover:bg-white transition-all disabled:opacity-50"
+        >
+          <Copy className="w-3 h-3" />
+          {cloning ? "Cloning…" : "Clone"}
+        </button>
+      </div>
+      <div className="px-3 py-2.5">
+        <p className="text-sm font-medium text-gray-900 truncate">{workflow.name}</p>
+      </div>
+    </div>
+  );
+}
+
 function WorkflowCard({
   workflow,
   deleting,
   onDelete,
   onRename,
+  onCoverChange,
+  onMarkSystem,
   onClick,
 }: {
   workflow: Workflow;
   deleting: boolean;
   onDelete: (e: React.MouseEvent) => void;
   onRename: (name: string) => void;
+  onCoverChange: (file: File) => void;
+  onMarkSystem: (e: React.MouseEvent) => void;
   onClick: () => void;
 }) {
   const idx = workflow.id.charCodeAt(0) % CARD_GRADIENTS.length;
   const gradient = CARD_GRADIENTS[idx];
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(workflow.name);
+  const coverRef = useRef<HTMLInputElement>(null);
 
   const date = new Date(workflow.updatedAt).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
@@ -223,20 +302,69 @@ function WorkflowCard({
     setEditing(false);
   }
 
+  function handleCoverClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    coverRef.current?.click();
+  }
+
   return (
     <div
       onClick={editing ? undefined : onClick}
       className="group flex flex-col border border-[#e0e0e2] rounded-2xl bg-white hover:shadow-sm cursor-pointer transition-all overflow-hidden"
     >
-      <div className={`relative h-40 bg-gradient-to-br ${gradient} shrink-0`}>
+      <div className={`relative h-40 shrink-0 overflow-hidden ${!workflow.coverImage ? `bg-gradient-to-br ${gradient}` : ""}`}>
+        {workflow.coverImage && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={workflow.coverImage} alt={workflow.name} className="w-full h-full object-cover" />
+        )}
+
+        {/* Cover upload overlay */}
         <button
-          onClick={onDelete}
-          disabled={deleting}
-          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 p-1 rounded-md bg-white/80 text-gray-500 hover:text-red-500 transition-all disabled:opacity-50"
+          onClick={handleCoverClick}
+          className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity text-white"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <ImageIcon className="w-5 h-5" />
+          <span className="text-[11px] font-medium">Change cover</span>
         </button>
+        <input
+          ref={coverRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onCoverChange(file);
+          }}
+        />
+
+        {/* Action buttons */}
+        <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={onMarkSystem}
+            title="Toggle system workflow"
+            className="p-1 rounded-md bg-white/80 text-gray-500 hover:text-indigo-600 transition-colors"
+          >
+            <Globe className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={onDelete}
+            disabled={deleting}
+            className="p-1 rounded-md bg-white/80 text-gray-500 hover:text-red-500 transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {workflow.isSystem && (
+          <div className="absolute top-1.5 left-1.5">
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/80 text-[10px] font-medium text-indigo-600">
+              <Globe className="w-3 h-3" /> System
+            </span>
+          </div>
+        )}
       </div>
+
       <div className="px-3 py-2.5">
         {editing ? (
           <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>

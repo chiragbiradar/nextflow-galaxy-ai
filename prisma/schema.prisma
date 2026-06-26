@@ -8,14 +8,16 @@ datasource db {
 }
 
 model Workflow {
-  id        String        @id @default(cuid())
-  userId    String
-  name      String        @default("Untitled")
-  nodes     Json          @default("[]")
-  edges     Json          @default("[]")
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  runs      WorkflowRun[]
+  id          String        @id @default(cuid())
+  userId      String
+  name        String        @default("Untitled")
+  nodes       Json          @default("[]")
+  edges       Json          @default("[]")
+  coverImage  String?
+  isSystem    Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  runs        WorkflowRun[]
 }
 
 model WorkflowRun {

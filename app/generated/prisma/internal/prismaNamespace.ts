@@ -673,6 +673,8 @@ export const WorkflowScalarFieldEnum = {
   name: 'name',
   nodes: 'nodes',
   edges: 'edges',
+  coverImage: 'coverImage',
+  isSystem: 'isSystem',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -788,6 +790,13 @@ export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'J
  * Reference to a field of type 'QueryMode'
  */
 export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 

@@ -3,7 +3,7 @@
 import { Handle, Position, useReactFlow, type NodeProps, type Node } from "@xyflow/react";
 import { Plus, GripVertical, Copy, Trash2, Info, MoreHorizontal, Maximize2, Loader2, ImageIcon, Type } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import type { RequestInputsNodeData, RequestInputField } from "@/types/canvas";
 import { NodeMenuDropdown } from "../NodeMenuDropdown";
 
@@ -19,11 +19,30 @@ export function RequestInputsNode({ id, data }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const fieldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [handleTops, setHandleTops] = useState<Record<string, number>>({});
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    function measure() {
+      const next: Record<string, number> = {};
+      for (const [fid, el] of fieldRefs.current.entries()) {
+        next[fid] = el.offsetTop + el.offsetHeight / 2;
+      }
+      setHandleTops(next);
+    }
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, [fields]);
 
   useEffect(() => {
     if (!pickerOpen) return;
     function onClickOutside(e: MouseEvent) {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerOpen(false);
+      if (pickerRef.current && !pickerRef.current.contains(e.target as globalThis.Node)) setPickerOpen(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
@@ -65,7 +84,17 @@ export function RequestInputsNode({ id, data }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-2xl w-72 text-xs relative">
+    <div ref={rootRef} className="bg-white rounded-xl border border-gray-200 shadow-2xl w-72 text-xs relative">
+      {/* All field handles at root level so top is relative to node, not field div */}
+      {fields.map(field => (
+        <Handle
+          key={field.id}
+          type="source"
+          position={Position.Right}
+          id={`field-${field.id}`}
+          style={{ ...(field.type === "text" ? TEXT_HANDLE : IMAGE_HANDLE), top: handleTops[field.id] ?? "50%" }}
+        />
+      ))}
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
         <div className="flex items-center gap-1.5">
@@ -112,7 +141,11 @@ export function RequestInputsNode({ id, data }: Props) {
       {/* Fields */}
       <div className="px-2 py-2 space-y-2">
         {fields.map((field) => (
-          <div key={field.id} className="group relative">
+          <div
+            key={field.id}
+            ref={el => { if (el) fieldRefs.current.set(field.id, el); else fieldRefs.current.delete(field.id); }}
+            className="group relative"
+          >
             <div className="flex items-center gap-1.5 mb-1">
               <GripVertical className="w-3 h-3 text-gray-300 shrink-0 cursor-grab" />
               <input
@@ -187,12 +220,6 @@ export function RequestInputsNode({ id, data }: Props) {
               </label>
             )}
 
-            <Handle
-              type="source"
-              position={Position.Right}
-              id={`field-${field.id}`}
-              style={{ ...(field.type === "text" ? TEXT_HANDLE : IMAGE_HANDLE), top: "auto", bottom: "auto", right: -6 }}
-            />
           </div>
         ))}
 

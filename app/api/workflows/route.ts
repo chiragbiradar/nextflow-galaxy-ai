@@ -20,13 +20,16 @@ export async function POST(req: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let name = "Untitled";
-  let nodes: object[] = [];
+  let nodes: object[] = [
+    { id: "request-inputs-default", type: "requestInputs", position: { x: 80, y: 200 }, data: { fields: [] } },
+    { id: "response-default", type: "response", position: { x: 600, y: 200 }, data: {} },
+  ];
   let edges: object[] = [];
 
   const body = await req.json().catch(() => null) as { name?: string; nodes?: object[]; edges?: object[] } | null;
   if (body) {
     if (body.name) name = body.name;
-    if (body.nodes) nodes = body.nodes;
+    if (body.nodes && (body.nodes as object[]).length > 0) nodes = body.nodes;
     if (body.edges) edges = body.edges;
   }
 

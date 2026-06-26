@@ -27,11 +27,26 @@ export default async function CanvasPage({ params }: PageProps) {
 
   if (!workflow) notFound();
 
+  let initialNodes = ((workflow.nodes as unknown) as Node[]) ?? [];
+  // Ensure pre-placed nodes always exist
+  if (!initialNodes.some(n => n.type === "requestInputs")) {
+    initialNodes = [
+      { id: "request-inputs-default", type: "requestInputs", position: { x: 80, y: 200 }, data: { fields: [] } },
+      ...initialNodes,
+    ];
+  }
+  if (!initialNodes.some(n => n.type === "response")) {
+    initialNodes = [
+      ...initialNodes,
+      { id: "response-default", type: "response", position: { x: 600, y: 200 }, data: {} },
+    ];
+  }
+
   return (
     <CanvasLoader
       workflowId={workflow.id}
       initialName={workflow.name}
-      initialNodes={((workflow.nodes as unknown) as Node[]) ?? []}
+      initialNodes={initialNodes}
       initialEdges={((workflow.edges as unknown) as Edge[]) ?? []}
       initialRuns={workflow.runs.map((r) => ({
         id: r.id,

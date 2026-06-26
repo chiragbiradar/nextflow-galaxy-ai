@@ -40,7 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/app/generated/prisma
 
 # Trigger.dev runtime files
 .trigger/
@@ -49,3 +48,5 @@ next-env.d.ts
 .claude/
 .agents/
 .prisma/
+
+.vercel

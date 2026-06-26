@@ -128,14 +128,10 @@ export const workflowRunTask = task({
 
           const userPrompt = promptParts.join("\n") || Object.values(inputValues).join("\n");
 
-          const VALID_GEMINI_MODELS = ["gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite","gemini-2.0-flash","gemini-1.5-pro","gemini-1.5-flash"];
-          const requestedModel = (node.data.model as string) || "gemini-2.5-flash";
-          const resolvedModel = VALID_GEMINI_MODELS.includes(requestedModel) ? requestedModel : "gemini-2.5-flash";
-
           const handle = await tasks.triggerAndWait<typeof geminiTask>("gemini-call", {
             runId,
             nodeRunId: nodeRun.id,
-            model: resolvedModel,
+            model: (node.data.model as string) || "gemini-2.5-flash",
             systemPrompt: (node.data.systemPrompt as string) || "",
             userPrompt,
             visionUrls: visionUrls.length > 0 ? visionUrls : undefined,

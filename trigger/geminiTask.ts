@@ -41,7 +41,16 @@ export const geminiTask = task({
     }
 
     const start = Date.now();
-    const result = await model.generateContent(parts);
+    let result;
+    try {
+      result = await model.generateContent(parts);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("429") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("resource_exhausted")) {
+        throw new Error(`Quota exceeded for model "${payload.model}". This model requires a paid Gemini API plan — switch to Gemini 2.5 Flash or 3.5 Flash (free tier).`);
+      }
+      throw err;
+    }
     const text = result.response.text();
     const durationMs = Date.now() - start;
 

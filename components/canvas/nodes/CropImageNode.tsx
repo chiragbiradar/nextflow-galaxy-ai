@@ -41,7 +41,7 @@ function NumInput({ label, value, onChange }: { label: string; value: number; on
   );
 }
 
-const HANDLE_STYLE = { background: "#f59e0b", width: 10, height: 10, border: "2px solid white" };
+const IMAGE_HANDLE = { width: 14, height: 14, background: "#3b82f6", border: "2px solid #3b82f680", boxShadow: "0 0 8px #3b82f650" };
 
 export function CropImageNode({ id, data }: Props) {
   const { updateNodeData } = useReactFlow();
@@ -59,7 +59,7 @@ export function CropImageNode({ id, data }: Props) {
         ? "border-amber-400 shadow-2xl shadow-amber-100 ring-2 ring-amber-300 ring-opacity-60 animate-pulse"
         : "border-gray-200 shadow-2xl"
     )}>
-      <Handle type="target" position={Position.Left} style={HANDLE_STYLE} />
+      <Handle type="target" position={Position.Left} style={IMAGE_HANDLE} />
 
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
@@ -124,7 +124,7 @@ export function CropImageNode({ id, data }: Props) {
         )}
       </div>
 
-      <Handle type="source" position={Position.Right} style={HANDLE_STYLE} />
+      <Handle type="source" position={Position.Right} style={IMAGE_HANDLE} />
 
       <NodeMenuDropdown
         nodeId={id}

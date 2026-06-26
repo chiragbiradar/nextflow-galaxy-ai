@@ -27,7 +27,7 @@ export function ResponseNode({ id, data }: Props) {
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: "#f59e0b", width: 10, height: 10, border: "2px solid white" }}
+        style={{ width: 14, height: 14, background: "#6366f1", border: "2px solid #6366f180", boxShadow: "0 0 8px #6366f150" }}
       />
 
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">

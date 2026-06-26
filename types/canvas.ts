@@ -34,3 +34,13 @@ export type CropImageNodeData = {
 };
 
 export type ResponseNodeData = Record<string, unknown>;
+
+export type ImageGenNodeData = {
+  label: string;
+  model: string;
+  prompt?: string;
+  aspectRatio?: string;
+  status: NodeStatus;
+  output: string | null;
+  durationMs: number | null;
+};

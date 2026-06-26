@@ -34,6 +34,7 @@ import { GeminiNode } from "./nodes/GeminiNode";
 import { CropImageNode } from "./nodes/CropImageNode";
 import { ResponseNode } from "./nodes/ResponseNode";
 import { StickyNoteNode } from "./nodes/StickyNoteNode";
+import { ImageGenNode } from "./nodes/ImageGenNode";
 import { cn } from "@/lib/utils";
 
 const NODE_TYPES: NodeTypes = {
@@ -42,17 +43,34 @@ const NODE_TYPES: NodeTypes = {
   cropImage: CropImageNode,
   response: ResponseNode,
   stickyNote: StickyNoteNode,
+  imageGen: ImageGenNode,
 };
 
-const EDGE_STYLE = { stroke: "#f59e0b", strokeWidth: 2 };
 const EDGE_DEFAULTS = {
   type: "default",
   animated: false,
-  style: EDGE_STYLE,
-  markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b" },
 };
 
-const PROTECTED = new Set(["requestInputs", "response"]);
+function getEdgeColor(srcNode: Node | undefined, sourceHandle: string | null | undefined): string {
+  if (!srcNode) return "#f59e0b";
+  if (srcNode.type === "cropImage" || srcNode.type === "imageGen") return "#3b82f6";
+  if (srcNode.type === "requestInputs" && sourceHandle?.startsWith("field-")) {
+    const fieldId = sourceHandle.replace("field-", "");
+    const field = (srcNode.data.fields as { id: string; type: string }[] ?? []).find(f => f.id === fieldId);
+    if (field?.type === "image") return "#3b82f6";
+  }
+  return "#f59e0b";
+}
+
+function makeEdgeStyle(color: string) {
+  return {
+    ...EDGE_DEFAULTS,
+    style: { stroke: color, strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color },
+  };
+}
+
+const PROTECTED = new Set(["response"]);
 const FIT_VIEW_OPTIONS = { padding: 0.2 };
 const PRO_OPTIONS = { hideAttribution: true };
 
@@ -100,6 +118,7 @@ function defaultNodeData(type: string) {
   if (type === "cropImage") return { label: "Crop Image", x: 0, y: 0, w: 100, h: 100, status: "idle", output: null, durationMs: null };
   if (type === "response") return {};
   if (type === "stickyNote") return { text: "" };
+  if (type === "imageGen") return { label: "Generate Image", model: "gemini-2.0-flash-preview-image-generation", status: "idle", output: null, durationMs: null };
   return {};
 }
 
@@ -112,7 +131,11 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(
-    initialEdges.map(e => ({ ...e, ...EDGE_DEFAULTS }))
+    initialEdges.map(e => {
+      const srcNode = initialNodes.find(n => n.id === e.source);
+      const color = getEdgeColor(srcNode, e.sourceHandle);
+      return { ...e, ...makeEdgeStyle(color) };
+    })
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [runs, setRuns] = useState<Run[]>(initialRuns);
@@ -181,7 +204,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
     setIsSaving(true);
     // Strip runtime-only fields before persisting (status/output change each run)
     const cleanNodes = ns.map(n => {
-      if (n.type === "gemini" || n.type === "cropImage") {
+      if (n.type === "gemini" || n.type === "cropImage" || n.type === "imageGen") {
         const { status: _s, output: _o, durationMs: _d, ...rest } = n.data as Record<string, unknown>;
         return { ...n, data: rest };
       }
@@ -217,7 +240,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
     const srcNode = curNodes.find(n => n.id === src);
     let outType: "text" | "image" | "any" = "any";
     if (srcNode?.type === "gemini") outType = "text";
-    else if (srcNode?.type === "cropImage") outType = "image";
+    else if (srcNode?.type === "cropImage" || srcNode?.type === "imageGen") outType = "image";
     else if (srcNode?.type === "requestInputs" && connection.sourceHandle?.startsWith("field-")) {
       const fieldId = connection.sourceHandle.replace("field-", "");
       const field = (srcNode.data.fields as { id: string; type: string }[] ?? []).find(f => f.id === fieldId);
@@ -233,7 +256,9 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
 
   const onConnect = useCallback((connection: Connection) => {
     snapshot();
-    setEdges(es => addEdge({ ...connection, ...EDGE_DEFAULTS }, es));
+    const srcNode = nodesRef.current.find(n => n.id === connection.source);
+    const color = getEdgeColor(srcNode, connection.sourceHandle);
+    setEdges(es => addEdge({ ...connection, ...makeEdgeStyle(color) }, es));
   }, [snapshot, setEdges]);
 
   // ── Node changes — protect requestInputs + response ───────────────────────
@@ -314,7 +339,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
       const connectedEdges = edgesRef.current.filter(e => e.source === nodeId || e.target === nodeId);
       const newEdges = connectedEdges.map(e => ({
         ...e,
-        ...EDGE_DEFAULTS,
+        ...makeEdgeStyle(((e.style as { stroke?: string } | undefined)?.stroke) ?? "#f59e0b"),
         id: `e-${nanoid(8)}`,
         source: e.source === nodeId ? newId : e.source,
         target: e.target === nodeId ? newId : e.target,
@@ -421,7 +446,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
 
   return (
     <div
-      className="w-full h-full bg-gray-50 relative overflow-hidden"
+      className="w-full h-full bg-[#f4f4f4] relative overflow-hidden"
       onClick={() => setContextMenu(null)}
     >
       {/* Floating workflow name pill — top left, matches reference */}
@@ -452,9 +477,10 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
           onConnect={onConnect}
           isValidConnection={isValidConnection}
           nodeTypes={NODE_TYPES}
-          defaultEdgeOptions={EDGE_DEFAULTS}
+          defaultEdgeOptions={makeEdgeStyle("#f59e0b")}
           onSelectionChange={onSelectionChange}
           onNodeContextMenu={onNodeContextMenu}
+          deleteKeyCode={["Delete", "Backspace"]}
           fitView
           fitViewOptions={FIT_VIEW_OPTIONS}
           minZoom={0.2}
@@ -504,7 +530,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
               </button>
             </div>
           </Panel>
-          <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="#d1d5db" />
+          <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="#cacaca" />
           <Controls className="!bottom-16 !left-4" />
         </ReactFlow>
       </div>

@@ -12,6 +12,7 @@ import {
   BookOpen,
   Settings,
   Gift,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -60,6 +61,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [userExpanded, setUserExpanded] = useState(true);
   const { user } = useUser();
   const fullName = user?.fullName ?? user?.firstName ?? "Account";
 
@@ -157,17 +159,25 @@ export function Sidebar() {
       <div className="px-2 pb-3 border-t border-[#e0e0e2] pt-2">
         {!collapsed && (
           <>
-            <div className="space-y-3">
-              <button className="w-full flex items-center gap-2 px-3 h-8 rounded-full text-xs font-medium text-gray-600 bg-white hover:bg-gray-50 transition-colors">
-                <Settings className="w-3.5 h-3.5 shrink-0" />
-                <span>Settings</span>
-              </button>
-              <button className="w-full flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-white bg-indigo-600/90 hover:bg-indigo-600 transition-colors">
-                <Gift className="w-4 h-4 shrink-0" />
-                <span>Claim Offer</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-2.5 px-1 py-1 mt-5">
+            {userExpanded && (
+              <div className="space-y-2 mb-1">
+                <button className="w-full flex items-center justify-center gap-2 px-3 h-9 rounded-full text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <Settings className="w-4 h-4 shrink-0" />
+                  <span>Settings</span>
+                </button>
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 transition-colors">
+                  <Gift className="w-4 h-4 shrink-0" />
+                  <span>Claim Offer</span>
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => setUserExpanded(v => !v)}
+              className="w-full flex items-center justify-center py-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", userExpanded && "rotate-180")} />
+            </button>
+            <div className="flex items-center justify-center gap-2.5 px-1 py-1">
               <UserButton />
               <span className="text-sm text-gray-700 truncate">{fullName}</span>
             </div>

@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { geminiTask } from "./geminiTask";
 import { cropImageTask } from "./cropImageTask";
+import { imageGenTask } from "./imageGenTask";
 
 function makePrisma() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -176,6 +177,36 @@ export const workflowRunTask = task({
           await prisma.nodeRun.update({
             where: { id: nodeRun.id },
             data: { status: "COMPLETED", output: { url: outputUrl }, durationMs, completedAt: new Date() },
+          });
+
+        } else if (node.type === "imageGen") {
+          const incomingEdges = edges.filter(e => e.target === node.id);
+          const promptParts: string[] = [];
+          for (const e of incomingEdges) {
+            if (nodeOutputs[e.source]) promptParts.push(nodeOutputs[e.source]);
+            if (e.sourceHandle?.startsWith("field-")) {
+              const fieldId = e.sourceHandle.replace("field-", "");
+              const srcNode = allNodes.find(n => n.id === e.source);
+              const field = (srcNode?.data.fields as { id: string; value: string }[] ?? []).find(f => f.id === fieldId);
+              if (field?.value) promptParts.push(field.value);
+            }
+          }
+          const prompt = promptParts.join("\n") || (node.data.prompt as string) || "Generate an image";
+
+          const handle = await tasks.triggerAndWait<typeof imageGenTask>("image-gen", {
+            nodeRunId: nodeRun.id,
+            prompt,
+            model: (node.data.model as string) || "gemini-2.0-flash-preview-image-generation",
+            aspectRatio: (node.data.aspectRatio as string) || "1:1",
+          });
+
+          if (!handle.ok) throw new Error("Image generation task failed");
+          const { imageDataUrl, durationMs } = handle.output;
+          if (imageDataUrl) nodeOutputs[node.id] = imageDataUrl;
+
+          await prisma.nodeRun.update({
+            where: { id: nodeRun.id },
+            data: { status: "COMPLETED", output: { url: imageDataUrl }, durationMs, completedAt: new Date() },
           });
         }
       } catch (err) {

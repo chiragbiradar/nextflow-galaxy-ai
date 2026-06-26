@@ -20,7 +20,8 @@ const MODELS = [
   "gemini-1.5-flash",
 ];
 
-const HANDLE_STYLE = { background: "#f59e0b", width: 10, height: 10, border: "2px solid white" };
+const TEXT_HANDLE = { width: 14, height: 14, background: "#f59e0b", border: "2px solid #f59e0b80", boxShadow: "0 0 8px #f59e0b50" };
+const IMAGE_HANDLE = { width: 14, height: 14, background: "#3b82f6", border: "2px solid #3b82f680", boxShadow: "0 0 8px #3b82f650" };
 
 export function GeminiNode({ id, data }: Props) {
   const { updateNodeData } = useReactFlow();
@@ -72,19 +73,8 @@ export function GeminiNode({ id, data }: Props) {
         : "border-gray-200 shadow-2xl"
     )}>
       {/* Prompt input handle */}
-      <Handle
-        type="target"
-        id="prompt"
-        position={Position.Left}
-        style={{ ...HANDLE_STYLE, top: 96 }}
-      />
-      {/* Image Vision input handle */}
-      <Handle
-        type="target"
-        id="image-vision"
-        position={Position.Left}
-        style={{ ...HANDLE_STYLE, top: 156, background: "#f59e0b" }}
-      />
+      <Handle type="target" id="prompt" position={Position.Left} style={{ ...TEXT_HANDLE, top: 96 }} />
+      <Handle type="target" id="image-vision" position={Position.Left} style={{ ...IMAGE_HANDLE, top: 156 }} />
 
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
@@ -225,12 +215,7 @@ export function GeminiNode({ id, data }: Props) {
         </div>
       </div>
 
-      {/* Output handle */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={HANDLE_STYLE}
-      />
+      <Handle type="source" position={Position.Right} style={TEXT_HANDLE} />
 
       <NodeMenuDropdown
         nodeId={id}

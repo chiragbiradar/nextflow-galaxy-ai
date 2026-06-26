@@ -9,7 +9,8 @@ import { NodeMenuDropdown } from "../NodeMenuDropdown";
 
 type Props = NodeProps<Node<RequestInputsNodeData>>;
 
-const HANDLE_STYLE = { background: "#f59e0b", width: 10, height: 10, border: "2px solid white" };
+const TEXT_HANDLE = { width: 14, height: 14, background: "#f59e0b", border: "2px solid #f59e0b80", boxShadow: "0 0 8px #f59e0b50" };
+const IMAGE_HANDLE = { width: 14, height: 14, background: "#3b82f6", border: "2px solid #3b82f680", boxShadow: "0 0 8px #3b82f650" };
 
 export function RequestInputsNode({ id, data }: Props) {
   const { updateNodeData } = useReactFlow();
@@ -155,12 +156,11 @@ export function RequestInputsNode({ id, data }: Props) {
               </label>
             )}
 
-            {/* Output handle per field */}
             <Handle
               type="source"
               position={Position.Right}
               id={`field-${field.id}`}
-              style={{ ...HANDLE_STYLE, top: "auto", bottom: "auto", right: -6 }}
+              style={{ ...(field.type === "text" ? TEXT_HANDLE : IMAGE_HANDLE), top: "auto", bottom: "auto", right: -6 }}
             />
           </div>
         ))}
@@ -185,7 +185,7 @@ export function RequestInputsNode({ id, data }: Props) {
 
       <NodeMenuDropdown
         nodeId={id}
-        canDelete={false}
+        canDelete={true}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
       />

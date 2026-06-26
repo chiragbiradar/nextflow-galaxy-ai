@@ -24,6 +24,7 @@
     "@types/ws": "^8.18.1",
     "@xyflow/react": "^12.11.1",
     "clsx": "^2.1.1",
+    "geist": "^1.7.2",
     "lucide-react": "^1.21.0",
     "nanoid": "^5.1.15",
     "next": "16.2.9",

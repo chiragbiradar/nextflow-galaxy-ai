@@ -28,6 +28,7 @@ export type CropImageNodeData = {
   y: number;
   w: number;
   h: number;
+  inputImageUrl?: string;
   status: NodeStatus;
   output: string | null;
   durationMs: number | null;

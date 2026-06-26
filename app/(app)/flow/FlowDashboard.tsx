@@ -7,8 +7,8 @@ import { Upload, Plus, Search, Trash2, Pencil, Check, X } from "lucide-react";
 interface Workflow {
   id: string;
   name: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const SYSTEM_WORKFLOWS = [
@@ -265,7 +265,7 @@ function WorkflowCard({
             </button>
           </div>
         )}
-        <p className="text-xs text-gray-400 mt-0.5">Updated {date}</p>
+        <p className="text-xs text-gray-400 mt-0.5" suppressHydrationWarning>Updated {date}</p>
       </div>
     </div>
   );

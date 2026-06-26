@@ -11,5 +11,13 @@ export default async function FlowPage() {
     select: { id: true, name: true, createdAt: true, updatedAt: true },
   });
 
-  return <FlowDashboard workflows={workflows} />;
+  return (
+    <FlowDashboard
+      workflows={workflows.map((w) => ({
+        ...w,
+        createdAt: w.createdAt.toISOString(),
+        updatedAt: w.updatedAt.toISOString(),
+      }))}
+    />
+  );
 }

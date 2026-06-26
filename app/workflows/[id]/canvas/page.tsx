@@ -1,8 +1,15 @@
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { CanvasClient } from "@/components/canvas/CanvasClient";
+import dynamic from "next/dynamic";
 import type { Node, Edge } from "@xyflow/react";
+
+// React Flow does DOM measurements during render that differ between SSR and
+// the browser — disable SSR to prevent hydration mismatches.
+const CanvasClient = dynamic(
+  () => import("@/components/canvas/CanvasClient").then((m) => ({ default: m.CanvasClient })),
+  { ssr: false }
+);
 
 interface PageProps {
   params: Promise<{ id: string }>;

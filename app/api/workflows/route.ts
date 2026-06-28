@@ -1,6 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+const CreateBody = z.object({
+  name: z.string().min(1).max(255).optional(),
+  nodes: z.array(z.any()).optional(),
+  edges: z.array(z.any()).optional(),
+}).optional();
 
 export async function GET() {
   const { userId } = await auth();
@@ -19,6 +26,10 @@ export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const parsed = CreateBody.safeParse(await req.json().catch(() => undefined));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  const body = parsed.data;
+
   let name = "Untitled";
   let nodes: object[] = [
     { id: "request-inputs-default", type: "requestInputs", position: { x: 80, y: 200 }, data: { fields: [] } },
@@ -26,10 +37,9 @@ export async function POST(req: Request) {
   ];
   let edges: object[] = [];
 
-  const body = await req.json().catch(() => null) as { name?: string; nodes?: object[]; edges?: object[] } | null;
   if (body) {
     if (body.name) name = body.name;
-    if (body.nodes && (body.nodes as object[]).length > 0) nodes = body.nodes;
+    if (body.nodes && body.nodes.length > 0) nodes = body.nodes;
     if (body.edges) edges = body.edges;
   }
 

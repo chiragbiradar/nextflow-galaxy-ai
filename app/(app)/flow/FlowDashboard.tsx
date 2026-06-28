@@ -49,6 +49,7 @@ export function FlowDashboard({
   async function handleDelete(id: string, e: React.MouseEvent) {
     e.stopPropagation();
     e.preventDefault();
+    if (!window.confirm("Delete this workflow? This cannot be undone.")) return;
     setDeletingId(id);
     await fetch(`/api/workflows/${id}`, { method: "DELETE" });
     router.refresh();

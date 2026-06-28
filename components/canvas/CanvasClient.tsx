@@ -48,25 +48,16 @@ const NODE_TYPES: NodeTypes = {
 
 const EDGE_DEFAULTS = {
   type: "default",
-  animated: false,
+  animated: true,
 };
 
-function getEdgeColor(srcNode: Node | undefined, sourceHandle: string | null | undefined): string {
-  if (!srcNode) return "#f59e0b";
-  if (srcNode.type === "cropImage" || srcNode.type === "imageGen") return "#3b82f6";
-  if (srcNode.type === "requestInputs" && sourceHandle?.startsWith("field-")) {
-    const fieldId = sourceHandle.replace("field-", "");
-    const field = (srcNode.data.fields as { id: string; type: string }[] ?? []).find(f => f.id === fieldId);
-    if (field?.type === "image") return "#3b82f6";
-  }
-  return "#f59e0b";
-}
+const EDGE_COLOR = "#a855f7";
 
-function makeEdgeStyle(color: string) {
+function makeEdgeStyle(_color?: string) {
   return {
     ...EDGE_DEFAULTS,
-    style: { stroke: color, strokeWidth: 2 },
-    markerEnd: { type: MarkerType.ArrowClosed, color },
+    style: { stroke: EDGE_COLOR, strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLOR },
   };
 }
 
@@ -137,11 +128,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(
-    initialEdges.map(e => {
-      const srcNode = initialNodes.find(n => n.id === e.source);
-      const color = getEdgeColor(srcNode, e.sourceHandle);
-      return { ...e, ...makeEdgeStyle(color) };
-    })
+    initialEdges.map(e => ({ ...e, ...makeEdgeStyle() }))
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [runs, setRuns] = useState<Run[]>(initialRuns);
@@ -262,9 +249,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
 
   const onConnect = useCallback((connection: Connection) => {
     snapshot();
-    const srcNode = nodesRef.current.find(n => n.id === connection.source);
-    const color = getEdgeColor(srcNode, connection.sourceHandle);
-    setEdges(es => addEdge({ ...connection, ...makeEdgeStyle(color) }, es));
+    setEdges(es => addEdge({ ...connection, ...makeEdgeStyle() }, es));
   }, [snapshot, setEdges]);
 
   // ── Node changes — protect requestInputs + response ───────────────────────
@@ -345,7 +330,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
       const connectedEdges = edgesRef.current.filter(e => e.source === nodeId || e.target === nodeId);
       const newEdges = connectedEdges.map(e => ({
         ...e,
-        ...makeEdgeStyle(((e.style as { stroke?: string } | undefined)?.stroke) ?? "#f59e0b"),
+        ...makeEdgeStyle(),
         id: `e-${nanoid(8)}`,
         source: e.source === nodeId ? newId : e.source,
         target: e.target === nodeId ? newId : e.target,
@@ -483,7 +468,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
           onConnect={onConnect}
           isValidConnection={isValidConnection}
           nodeTypes={NODE_TYPES}
-          defaultEdgeOptions={makeEdgeStyle("#f59e0b")}
+          defaultEdgeOptions={makeEdgeStyle()}
           onSelectionChange={onSelectionChange}
           onNodeContextMenu={onNodeContextMenu}
           deleteKeyCode={["Delete", "Backspace"]}

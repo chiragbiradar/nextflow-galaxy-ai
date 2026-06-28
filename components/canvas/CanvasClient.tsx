@@ -23,7 +23,7 @@ import "@xyflow/react/dist/style.css";
 import { nanoid } from "nanoid";
 import {
   Plus, Play, ArrowLeft, Loader2, Receipt, CreditCard,
-  History, StickyNote, Download,
+  History, StickyNote, Download, Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCanvasStore } from "@/store/canvas";
@@ -299,6 +299,34 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
     a.click();
   }
 
+  // ── Import JSON ───────────────────────────────────────────────────────────
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  function importWorkflow(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const json = JSON.parse(ev.target?.result as string) as { name?: string; nodes?: Node[]; edges?: Edge[] };
+        if (!Array.isArray(json.nodes) || !Array.isArray(json.edges)) {
+          alert("Invalid workflow file — missing nodes or edges.");
+          return;
+        }
+        snapshot();
+        if (json.name) setWorkflowName(json.name);
+        setNodes(json.nodes);
+        setEdges(json.edges.map((e: Edge) => ({ ...e, ...makeEdgeStyle() })));
+        setTimeout(() => save(json.nodes!, json.edges!, json.name ?? workflowName), 0);
+      } catch {
+        alert("Could not parse workflow file.");
+      }
+    };
+    reader.readAsText(file);
+    // Reset so same file can be re-imported
+    e.target.value = "";
+  }
+
   // ── Run (full / single / multi-select) ───────────────────────────────────
   // Wire handleRun into store so individual nodes can trigger it
   useEffect(() => {
@@ -517,6 +545,21 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
               >
                 <Download className="w-3.5 h-3.5" />
               </button>
+              <button
+                onClick={() => importFileRef.current?.click()}
+                title="Import workflow from JSON"
+                aria-label="Import workflow from JSON"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white/90 shadow-sm backdrop-blur text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5" />
+              </button>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={importWorkflow}
+              />
               <button
                 onClick={toggleHistory}
                 title="History"

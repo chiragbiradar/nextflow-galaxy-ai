@@ -40,7 +40,7 @@ const nodes = [
           id: "f-image",
           name: "image_field",
           type: "image",
-          value: "",
+          value: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80",
         },
       ],
     },

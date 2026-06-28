@@ -106,7 +106,7 @@ interface Props {
 function defaultNodeData(type: string, extra?: Record<string, unknown>) {
   if (type === "requestInputs") return { fields: [] };
   if (type === "gemini") return {
-    label: "LLM Call", model: "gemini-2.5-flash", systemPrompt: "", status: "idle", output: null, durationMs: null,
+    label: "LLM Call", model: "gemini-3.1-pro-preview", systemPrompt: "", status: "idle", output: null, durationMs: null,
     temperature: 0.7, maxTokens: 1024, reasoning: false, topP: 1, topK: 0,
     frequencyPenalty: 0, presencePenalty: 0, repetitionPenalty: 1, minP: 0, topA: 0,
     seed: 0, stopSequences: "", jsonMode: false,

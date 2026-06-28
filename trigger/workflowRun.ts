@@ -131,7 +131,7 @@ export const workflowRunTask = task({
           const handle = await tasks.triggerAndWait<typeof geminiTask>("gemini-call", {
             runId,
             nodeRunId: nodeRun.id,
-            model: (node.data.model as string) || "gemini-2.5-flash",
+            model: (node.data.model as string) || "gemini-3.1-pro-preview",
             systemPrompt: (node.data.systemPrompt as string) || "",
             userPrompt,
             visionUrls: visionUrls.length > 0 ? visionUrls : undefined,

@@ -181,7 +181,7 @@ export function GeminiNode({ id, data }: Props) {
         <div className="flex items-center gap-1.5 min-w-0">
           <div className="relative nodrag">
             <select
-              value={data.model ?? "gemini-2.5-pro"}
+              value={data.model ?? "gemini-3.1-pro-preview"}
               onChange={e => {
                 const m = LLM_MODELS.find(x => x.id === e.target.value);
                 set({ model: e.target.value, label: m?.label ?? "LLM Call" });

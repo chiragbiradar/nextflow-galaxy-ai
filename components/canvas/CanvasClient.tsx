@@ -70,7 +70,7 @@ function makeEdgeStyle(color: string) {
   };
 }
 
-const PROTECTED = new Set(["response"]);
+const PROTECTED = new Set(["response", "requestInputs"]);
 const FIT_VIEW_OPTIONS = { padding: 0.2 };
 const PRO_OPTIONS = { hideAttribution: true };
 

@@ -84,7 +84,7 @@ export function GeminiNode({ id, data }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const runNodeCallback = useCanvasStore(s => s.runNodeCallback);
 
-  const model = getModel(data.model ?? "gemini-2.5-pro");
+  const model = getModel(data.model ?? "gemini-3.1-pro-preview");
 
   const imageFileRef = useRef<HTMLInputElement>(null);
   const videoFileRef = useRef<HTMLInputElement>(null);

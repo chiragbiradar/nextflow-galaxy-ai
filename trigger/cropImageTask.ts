@@ -15,9 +15,15 @@ export const cropImageTask = task({
     const start = Date.now();
     const { imageUrl, x, y, w, h } = payload;
 
-    const imgRes = await fetch(imageUrl);
-    if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.status}`);
-    const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+    let imgBuffer: Buffer;
+    if (imageUrl.startsWith("data:")) {
+      const comma = imageUrl.indexOf(",");
+      imgBuffer = Buffer.from(imageUrl.slice(comma + 1), "base64");
+    } else {
+      const imgRes = await fetch(imageUrl);
+      if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.status}`);
+      imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+    }
 
     const img = sharp(imgBuffer);
     const { width, height } = await img.metadata();

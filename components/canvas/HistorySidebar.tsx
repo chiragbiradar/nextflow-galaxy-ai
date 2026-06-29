@@ -12,6 +12,7 @@ interface NodeRun {
   status: string;
   durationMs: number | null;
   output?: unknown;
+  error?: string | null;
   startedAt: string;
 }
 
@@ -42,6 +43,7 @@ function RunStatusIcon({ status, size = "md" }: { status: string; size?: "sm" | 
   if (s === "RUNNING") return <Loader2 className={cn(cls, "text-blue-500 animate-spin")} />;
   if (s === "COMPLETED") return <CheckCircle2 className={cn(cls, "text-green-500")} />;
   if (s === "FAILED") return <XCircle className={cn(cls, "text-red-500")} />;
+  if (s === "PARTIAL") return <XCircle className={cn(cls, "text-yellow-500")} />;
   return <Clock className={cn(cls, "text-gray-400")} />;
 }
 
@@ -60,6 +62,7 @@ function StatusBadge({ status }: { status: string }) {
       "text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide",
       s === "COMPLETED" ? "bg-green-100 text-green-700"
         : s === "FAILED" ? "bg-red-100 text-red-700"
+        : s === "PARTIAL" ? "bg-yellow-100 text-yellow-700"
         : s === "RUNNING" ? "bg-blue-100 text-blue-700"
         : "bg-gray-100 text-gray-500"
     )}>
@@ -100,18 +103,20 @@ function NodeRunRow({ nr }: { nr: NodeRun }) {
   const [open, setOpen] = useState(false);
   const s = normalizeStatus(nr.status);
   const hasOutput = !!nr.output && (typeof nr.output !== "object" || Object.keys(nr.output as object).length > 0);
+  const hasError = s === "FAILED" && !!nr.error;
+  const expandable = hasOutput || hasError;
 
   return (
     <div className="border-b border-gray-50 last:border-0">
       <button
-        onClick={() => hasOutput && setOpen(v => !v)}
+        onClick={() => expandable && setOpen(v => !v)}
         className={cn(
           "w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors",
-          hasOutput ? "hover:bg-gray-50 cursor-pointer" : "cursor-default"
+          expandable ? "hover:bg-gray-50 cursor-pointer" : "cursor-default"
         )}
       >
         <span className="shrink-0">
-          {hasOutput
+          {expandable
             ? open ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />
             : <span className="w-3 inline-block" />
           }
@@ -127,9 +132,14 @@ function NodeRunRow({ nr }: { nr: NodeRun }) {
         <StatusBadge status={s} />
       </button>
 
-      {open && hasOutput && (
-        <div className="px-4 pb-3 pl-10">
-          <OutputDisplay output={nr.output} nodeType={nr.nodeType} />
+      {open && (
+        <div className="px-4 pb-3 pl-10 space-y-2">
+          {hasError && (
+            <div className="text-[10px] text-red-700 bg-red-50 border border-red-200 rounded-md px-2.5 py-2 whitespace-pre-wrap break-words leading-relaxed">
+              {nr.error}
+            </div>
+          )}
+          {hasOutput && <OutputDisplay output={nr.output} nodeType={nr.nodeType} />}
         </div>
       )}
     </div>
@@ -164,6 +174,7 @@ function RunRow({ run }: { run: Run }) {
             "text-[10px]",
             s === "COMPLETED" ? "text-green-600"
               : s === "FAILED" ? "text-red-500"
+              : s === "PARTIAL" ? "text-yellow-600"
               : s === "RUNNING" ? "text-blue-500"
               : "text-gray-400"
           )}>

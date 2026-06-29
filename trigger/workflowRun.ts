@@ -81,6 +81,7 @@ export const workflowRunTask = task({
     }
 
     let hasFailed = false;
+    let hasCompleted = false;
 
     const executeNode = async (node: WorkflowNode): Promise<void> => {
       const nodeRun = await prisma.nodeRun.create({
@@ -217,6 +218,7 @@ export const workflowRunTask = task({
         });
         return; // stop this branch; siblings in concurrent Promise.all continue unaffected
       }
+      hasCompleted = true;
 
       // Fan out: collect all dependents that are now unblocked, launch them in parallel.
       // pendingDeps mutation is safe — JS single-threaded, no interleave between get+set.
@@ -266,7 +268,7 @@ export const workflowRunTask = task({
       });
     }
 
-    const finalStatus = hasFailed ? "FAILED" : "COMPLETED";
+    const finalStatus = hasFailed && hasCompleted ? "PARTIAL" : hasFailed ? "FAILED" : "COMPLETED";
     await prisma.workflowRun.update({
       where: { id: runId },
       data: { status: finalStatus, completedAt: new Date() },

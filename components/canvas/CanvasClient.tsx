@@ -91,6 +91,7 @@ interface Run {
     status: string;
     durationMs: number | null;
     output?: unknown;
+    error?: string | null;
     startedAt: string;
   }[];
 }

@@ -508,7 +508,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
           proOptions={PRO_OPTIONS}
         >
           <Panel position="top-right">
-            <div className="flex items-center gap-2 mt-2 mr-2 sm:mr-4">
+            <div className={cn("flex items-center gap-2 mt-2 transition-[margin] duration-300", isHistoryOpen ? "mr-72" : "mr-2 sm:mr-4")}>
               {selectedNodeIds.length > 0 && (
                 <button
                   onClick={() => handleRun(selectedNodeIds)}

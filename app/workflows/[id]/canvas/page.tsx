@@ -61,6 +61,7 @@ export default async function CanvasPage({ params }: PageProps) {
           status: nr.status,
           durationMs: nr.durationMs,
           output: nr.output ?? null,
+          error: nr.error ?? null,
           startedAt: nr.startedAt.toISOString(),
         })),
       }))}

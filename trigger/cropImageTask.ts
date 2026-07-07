@@ -1,5 +1,5 @@
 import { task } from "@trigger.dev/sdk";
-import Transloadit from "transloadit";
+import { Transloadit } from "transloadit";
 
 export interface CropImageTaskPayload {
   imageUrl: string;

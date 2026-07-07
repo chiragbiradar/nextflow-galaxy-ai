@@ -1,5 +1,5 @@
 import { task } from "@trigger.dev/sdk";
-import sharp from "sharp";
+import Transloadit from "transloadit";
 
 export interface CropImageTaskPayload {
   imageUrl: string;
@@ -25,18 +25,35 @@ export const cropImageTask = task({
       imgBuffer = Buffer.from(await imgRes.arrayBuffer());
     }
 
-    const img = sharp(imgBuffer);
-    const { width, height } = await img.metadata();
-    if (!width || !height) throw new Error("Could not read image dimensions");
+    const transloadit = new Transloadit({
+      authKey: process.env.TRANSLOADIT_AUTH_KEY!,
+      authSecret: process.env.TRANSLOADIT_AUTH_SECRET!,
+    });
 
-    const left = Math.round(width * x / 100);
-    const top = Math.round(height * y / 100);
-    const cropW = Math.round(width * w / 100);
-    const cropH = Math.round(height * h / 100);
+    const x1 = x / 100;
+    const y1 = y / 100;
+    const x2 = Math.min((x + w) / 100, 1);
+    const y2 = Math.min((y + h) / 100, 1);
 
-    const outBuf = await img.extract({ left, top, width: cropW, height: cropH }).jpeg().toBuffer();
-    const outputUrl = `data:image/jpeg;base64,${outBuf.toString("base64")}`;
+    const assembly = await transloadit.createAssembly({
+      params: {
+        steps: {
+          crop: {
+            robot: "/image/resize",
+            use: ":original",
+            crop: { x1, y1, x2, y2 },
+            imagemagick_stack: "v3.0.0",
+          },
+        },
+      },
+      uploads: { file: imgBuffer },
+      waitForCompletion: true,
+    });
 
-    return { outputUrl, durationMs: Date.now() - start };
+    const results = assembly.results as Record<string, { ssl_url: string }[]>;
+    const result = results?.crop?.[0];
+    if (!result?.ssl_url) throw new Error("Transloadit crop returned no output");
+
+    return { outputUrl: result.ssl_url, durationMs: Date.now() - start };
   },
 });

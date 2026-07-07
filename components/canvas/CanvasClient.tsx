@@ -388,7 +388,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
       if (n.type === "requestInputs" || n.type === "stickyNote") return n;
       if (n.type === "response") return { ...n, data: { ...n.data, results: undefined, output: null, status: "idle" } };
       if (targetNodeIds && !targetNodeIds.includes(n.id)) return n;
-      return { ...n, data: { ...n.data, status: "running", output: null } };
+      return { ...n, data: { ...n.data, status: "idle", output: null } };
     }));
     try {
       const res = await fetch(`/api/workflows/${workflowId}/run`, {

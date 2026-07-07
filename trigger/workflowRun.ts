@@ -1,10 +1,10 @@
-import { task, tasks } from "@trigger.dev/sdk";
+import { task } from "@trigger.dev/sdk";
 import { PrismaClient } from "@/app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { geminiTask } from "./geminiTask";
-import { cropImageTask } from "./cropImageTask";
-import { imageGenTask } from "./imageGenTask";
+import { runGemini } from "./geminiTask";
+import { runCropImage } from "./cropImageTask";
+import { runImageGen } from "./imageGenTask";
 
 function makePrisma() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -128,7 +128,9 @@ export const workflowRunTask = task({
 
           const userPrompt = promptParts.join("\n") || Object.values(inputValues).join("\n");
 
-          const handle = await tasks.triggerAndWait<typeof geminiTask>("gemini-call", {
+          // Direct call, not triggerAndWait — child-task waits inside Promise.all
+          // resume one at a time and serialize the DAG's parallel branches.
+          const { text, durationMs } = await runGemini({
             runId,
             nodeRunId: nodeRun.id,
             model: (node.data.model as string) || "gemini-3.1-pro-preview",
@@ -136,9 +138,6 @@ export const workflowRunTask = task({
             userPrompt,
             visionUrls: visionUrls.length > 0 ? visionUrls : undefined,
           });
-
-          if (!handle.ok) throw new Error("Gemini task failed");
-          const { text, durationMs } = handle.output;
           nodeOutputs[node.id] = text;
 
           await prisma.nodeRun.update({
@@ -162,16 +161,13 @@ export const workflowRunTask = task({
           }
           if (!imageUrl) throw new Error("No image input connected to Crop Image node");
 
-          const handle = await tasks.triggerAndWait<typeof cropImageTask>("crop-image", {
+          const { outputUrl, durationMs } = await runCropImage({
             imageUrl,
             x: (node.data.x as number) ?? 0,
             y: (node.data.y as number) ?? 0,
             w: (node.data.w as number) ?? 100,
             h: (node.data.h as number) ?? 100,
           });
-
-          if (!handle.ok) throw new Error("Crop image task failed");
-          const { outputUrl, durationMs } = handle.output;
           if (outputUrl) nodeOutputs[node.id] = outputUrl;
 
           await prisma.nodeRun.update({
@@ -193,15 +189,12 @@ export const workflowRunTask = task({
           }
           const prompt = promptParts.join("\n") || (node.data.prompt as string) || "Generate an image";
 
-          const handle = await tasks.triggerAndWait<typeof imageGenTask>("image-gen", {
+          const { imageDataUrl, durationMs } = await runImageGen({
             nodeRunId: nodeRun.id,
             prompt,
             model: (node.data.model as string) || "gemini-2.0-flash-preview-image-generation",
             aspectRatio: (node.data.aspectRatio as string) || "1:1",
           });
-
-          if (!handle.ok) throw new Error("Image generation task failed");
-          const { imageDataUrl, durationMs } = handle.output;
           if (imageDataUrl) nodeOutputs[node.id] = imageDataUrl;
 
           await prisma.nodeRun.update({

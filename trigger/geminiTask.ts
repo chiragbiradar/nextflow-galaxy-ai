@@ -24,36 +24,38 @@ async function urlToInlinePart(url: string): Promise<Part> {
   return { inlineData: { mimeType, data } };
 }
 
+export async function runGemini(payload: GeminiTaskPayload): Promise<{ text: string; durationMs: number }> {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  const model = genAI.getGenerativeModel({
+    model: payload.model,
+    systemInstruction: payload.systemPrompt || undefined,
+  });
+
+  const parts: Part[] = [{ text: payload.userPrompt }];
+
+  if (payload.visionUrls?.length) {
+    const imageParts = await Promise.all(payload.visionUrls.map(urlToInlinePart));
+    parts.push(...imageParts);
+  }
+
+  const start = Date.now();
+  let result;
+  try {
+    result = await model.generateContent(parts);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("429") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("resource_exhausted")) {
+      throw new Error(`Quota exceeded for model "${payload.model}". This model requires a paid Gemini API plan — switch to Gemini 2.5 Flash or 3.5 Flash (free tier).`);
+    }
+    throw err;
+  }
+  const text = result.response.text();
+  const durationMs = Date.now() - start;
+
+  return { text, durationMs };
+}
+
 export const geminiTask = task({
   id: "gemini-call",
-  run: async (payload: GeminiTaskPayload) => {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({
-      model: payload.model,
-      systemInstruction: payload.systemPrompt || undefined,
-    });
-
-    const parts: Part[] = [{ text: payload.userPrompt }];
-
-    if (payload.visionUrls?.length) {
-      const imageParts = await Promise.all(payload.visionUrls.map(urlToInlinePart));
-      parts.push(...imageParts);
-    }
-
-    const start = Date.now();
-    let result;
-    try {
-      result = await model.generateContent(parts);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("429") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("resource_exhausted")) {
-        throw new Error(`Quota exceeded for model "${payload.model}". This model requires a paid Gemini API plan — switch to Gemini 2.5 Flash or 3.5 Flash (free tier).`);
-      }
-      throw err;
-    }
-    const text = result.response.text();
-    const durationMs = Date.now() - start;
-
-    return { text, durationMs };
-  },
+  run: (payload: GeminiTaskPayload) => runGemini(payload),
 });

@@ -13,7 +13,7 @@ export default async function CanvasPage({ params }: PageProps) {
   const { userId } = await auth();
 
   const workflow = await prisma.workflow.findFirst({
-    where: { id, userId: userId! },
+    where: { id, OR: [{ userId: userId! }, { isSystem: true }] },
     include: {
       runs: {
         orderBy: { startedAt: "desc" },

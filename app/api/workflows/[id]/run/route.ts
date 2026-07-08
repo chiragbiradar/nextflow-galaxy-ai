@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { userId } = await auth();
 
   const workflow = await prisma.workflow.findFirst({
-    where: { id, userId: userId! },
+    where: { id, OR: [{ userId: userId! }, { isSystem: true }] },
   });
 
   if (!workflow) return NextResponse.json({ error: "Not found" }, { status: 404 });

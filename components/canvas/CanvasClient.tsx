@@ -138,6 +138,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeRunIdRef = useRef<string | null>(null);
 
   // Stable refs so callbacks don't depend on nodes/edges directly
   const nodesRef = useRef(nodes);
@@ -398,6 +399,7 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
       });
       if (res.ok) {
         const run: Run = await res.json();
+        activeRunIdRef.current = run.id;
         setRuns(prev => [run, ...prev]);
         if (!isHistoryOpen) toggleHistory();
         pollRun(run.id);
@@ -415,10 +417,12 @@ function CanvasInner({ workflowId, initialName, initialNodes, initialEdges, init
         const onVisible = () => { if (document.visibilityState === "visible") { clearTimeout(timer); resolve(); } };
         document.addEventListener("visibilitychange", onVisible, { once: true });
       });
+      if (activeRunIdRef.current !== runId) return; // a newer run superseded this poll
       const res = await fetch(`/api/runs/${runId}`);
       if (!res.ok) break;
       const run: Run = await res.json();
       setRuns(prev => prev.map(r => r.id === runId ? run : r));
+      if (activeRunIdRef.current !== runId) return; // stale by the time the fetch resolved
 
       const updates = new Map<string, { status: string; output: unknown; results?: unknown; durationMs: number | null }>();
       for (const nr of run.nodeRuns) {

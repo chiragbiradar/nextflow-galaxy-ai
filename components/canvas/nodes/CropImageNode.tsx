@@ -118,6 +118,7 @@ export function CropImageNode({ id, data }: Props) {
         <div className="flex items-center gap-1.5">
           <span className="font-semibold text-gray-800 text-[13px]">Crop Image</span>
           <Info className="w-3.5 h-3.5 text-gray-400" />
+          <span className="text-[9px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 py-0.5">~30s</span>
         </div>
         <div className="flex items-center gap-1.5">
           <button className="nodrag p-1 rounded hover:bg-gray-100 text-gray-400" onClick={() => set({ x: DEFAULTS.x, y: DEFAULTS.y, w: DEFAULTS.w, h: DEFAULTS.h })}>

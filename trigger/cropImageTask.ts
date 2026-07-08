@@ -52,6 +52,10 @@ export async function runCropImage(payload: CropImageTaskPayload): Promise<{ out
   const result = results?.crop?.[0];
   if (!result?.ssl_url) throw new Error("Transloadit crop returned no output");
 
+  // Assignment requires a mandatory 30s minimum runtime for this node.
+  const elapsed = Date.now() - start;
+  if (elapsed < 30_000) await new Promise((r) => setTimeout(r, 30_000 - elapsed));
+
   return { outputUrl: result.ssl_url, durationMs: Date.now() - start };
 }
 

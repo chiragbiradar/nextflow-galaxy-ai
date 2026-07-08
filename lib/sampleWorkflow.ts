@@ -79,8 +79,8 @@ export const SAMPLE_NODES = [
 ];
 
 export const SAMPLE_EDGES = [
-  { id: "e1", source: "n-inputs", sourceHandle: "field-f-image", target: "n-crop1", ...EDGE },
-  { id: "e2", source: "n-inputs", sourceHandle: "field-f-image", target: "n-crop2", ...EDGE },
+  { id: "e1", source: "n-inputs", sourceHandle: "field-f-image", target: "n-crop1", targetHandle: "image-input", ...EDGE },
+  { id: "e2", source: "n-inputs", sourceHandle: "field-f-image", target: "n-crop2", targetHandle: "image-input", ...EDGE },
   { id: "e3", source: "n-inputs", sourceHandle: "field-f-text", target: "n-gem1", targetHandle: "prompt", ...EDGE },
   { id: "e4", source: "n-gem1", target: "n-gem2", targetHandle: "prompt", ...EDGE },
   { id: "e5", source: "n-gem2", target: "n-gem3", targetHandle: "prompt", ...EDGE },

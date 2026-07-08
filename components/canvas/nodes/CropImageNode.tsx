@@ -23,8 +23,10 @@ export function CropImageNode({ id, data }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Derive input image from connected source node
-  const imageEdge = edges.find(e => e.target === id && e.targetHandle === "image-input");
+  // Derive input image from connected source node.
+  // targetHandle is missing on some legacy/seeded edges predating the multi-handle
+  // layout (x/y/w/h/image-input) — treat an unset handle as image-input too.
+  const imageEdge = edges.find(e => e.target === id && (e.targetHandle === "image-input" || !e.targetHandle));
   let connectedImageUrl: string | undefined;
   if (imageEdge) {
     const srcNode = nodes.find(n => n.id === imageEdge.source);
